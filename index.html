@@ -1719,7 +1719,10 @@ function renderAdminContent(){
       `<div class="empty"><div class="big">📊</div>Nenhum mês fechado ainda.<br>Use o botão na aba <strong>📅 Mês</strong> para fechar quando o mês terminar.</div>`}`;
 
   } else if(currentAdminTab==='diario'){
-    const curMonth = today().slice(0,7);
+    // collect all months that have reports
+    const allMonths = [...new Set(Object.keys(S.reports).map(k=>k.slice(k.indexOf('_')+1,k.indexOf('_')+8)))].sort().reverse();
+    if(!window._adminDiarioMes || !allMonths.includes(window._adminDiarioMes)) window._adminDiarioMes = allMonths[0] || today().slice(0,7);
+    const curMonth = window._adminDiarioMes;
     const daysInMonth = new Date(parseInt(curMonth.slice(0,4)), parseInt(curMonth.slice(5,7)), 0).getDate();
     const days = [];
     for(let d=1; d<=daysInMonth; d++) days.push(curMonth+'-'+(d<10?'0'+d:d));
@@ -1733,7 +1736,10 @@ function renderAdminContent(){
       {key:'postagens',label:'Postagens'},
     ];
     el.innerHTML=`
-      <div class="shdr"><div class="sdot"></div><h3>Relatórios Diários — ${monthLabel(curMonth)}</h3></div>
+      <div class="shdr"><div class="sdot"></div><h3>Relatórios Diários</h3></div>
+      <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+        ${allMonths.map(m=>`<button onclick="window._adminDiarioMes='${m}';switchAdminTab('diario')" style="padding:6px 14px;border-radius:20px;border:1px solid ${m===curMonth?'var(--gold)':'#333'};background:${m===curMonth?'#1C1800':'var(--card)'};color:${m===curMonth?'var(--gold)':'var(--muted2)'};font-size:12px;font-weight:700;cursor:pointer">${monthLabel(m)}</button>`).join('')}
+      </div>
       ${S.players.map(p=>{
         const reps = days.map(d=>({date:d, rep:getReport(p.id,d)})).filter(x=>x.rep);
         if(!reps.length) return `<div class="card" style="margin-bottom:12px">
