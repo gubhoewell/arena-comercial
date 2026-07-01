@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Point 43 — Arena Comercial</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#0A0A0A;--surface:#141414;--card:#1C1C1C;--card2:#222;
+  --gold:#D4AF37;--gold-l:#F0CB5A;--gold-d:#8A7220;
+  --green:#4CAF50;--red:#FF5555;--amber:#F0A500;
+  --text:#F0F0F0;--muted:#555;--muted2:#888;
+  --r:14px;--rs:8px;--nav:62px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh;padding-bottom:calc(var(--nav)+8px)}
+.app-header{background:var(--surface);border-bottom:1px solid #1E1E1E;padding:12px 16px 10px;position:sticky;top:0;z-index:200}
+.hdr-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.logo{font-size:17px;font-weight:800;color:var(--gold);letter-spacing:1px}
+.logo span{font-size:11px;color:var(--muted2);font-weight:400;margin-left:5px}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.date-chip{font-size:11px;color:var(--muted2);background:var(--card);padding:3px 10px;border-radius:20px}
+.btn-admin{background:var(--card);border:1px solid #333;color:var(--muted2);width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.btn-admin.unlocked{border-color:var(--gold-d);color:var(--gold)}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.conn-dot.online{background:var(--green)}
+.conn-dot.offline{background:var(--red)}
+.loading-screen{position:fixed;inset:0;background:var(--bg);z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.loading-screen .spin{font-size:40px;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pcards{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.pc{background:var(--card);border:2px solid transparent;border-radius:10px;padding:8px 5px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;position:relative}
+.pc.active{border-color:var(--gold);background:#1C1800}
+.pc-emoji{font-size:20px;display:block;margin-bottom:3px}
+.pc-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-fc{font-size:11px;color:var(--gold);font-weight:700;margin-top:1px}
+.pc-lvl{position:absolute;top:-7px;right:-7px;font-size:9px;font-weight:800;background:var(--gold);color:#000;padding:2px 6px;border-radius:10px;line-height:1.3}
+.tqb{background:var(--surface);padding:10px 16px;border-bottom:1px solid #1A1A1A}
+.tqb-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.tqb-lbl{font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px}
+.tqb-val{font-size:14px;font-weight:800}
+.tqb-val.g{color:var(--green)}.tqb-val.a{color:var(--amber)}.tqb-val.r{color:var(--red)}
+.pbar{height:7px;background:#222;border-radius:4px;overflow:hidden}
+.pfill{height:100%;border-radius:4px;transition:width .5s ease}
+.pfill.g{background:linear-gradient(90deg,#2E7D32,var(--green))}
+.pfill.a{background:linear-gradient(90deg,#B45309,var(--amber))}
+.pfill.r{background:linear-gradient(90deg,#7F1D1D,var(--red))}
+.rec-alert{margin-top:8px;background:#1A0800;border:1px solid #7F3D00;border-radius:var(--rs);padding:8px 12px;font-size:12px;color:var(--amber);display:flex;align-items:center;gap:6px}
+.bnav{position:fixed;bottom:0;left:0;right:0;height:var(--nav);background:var(--surface);border-top:1px solid #1A1A1A;display:flex;z-index:200}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;border-top:2px solid transparent;transition:color .15s;padding-top:2px}
+.ni .ico{font-size:19px}
+.ni.active{color:var(--gold);border-top-color:var(--gold)}
+.content{padding:14px 14px 90px}
+.shdr{display:flex;align-items:center;gap:8px;margin-bottom:12px;margin-top:2px}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--gold);flex-shrink:0}
+.shdr h3{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;color:var(--muted2)}
+.shdr .sbadge{margin-left:auto;font-size:11px;color:var(--gold);background:#1C1800;padding:3px 10px;border-radius:10px;font-weight:700}
+.card{background:var(--card);border:1px solid #242424;border-radius:var(--r);padding:14px;margin-bottom:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.mstat{background:var(--card);border:1px solid #242424;border-radius:var(--rs);padding:10px 6px;text-align:center}
+.mstat-v{font-size:20px;font-weight:800;line-height:1}
+.mstat-l{font-size:10px;color:var(--muted2);margin-top:3px}
+.cv-gold{color:var(--gold)}.cv-green{color:var(--green)}.cv-amber{color:var(--amber)}.cv-red{color:var(--red)}.cv-white{color:var(--text)}.cv-muted{color:var(--muted2)}
+.pmcard{background:var(--card);border:1px solid #242424;border-radius:var(--rs);padding:12px 14px;margin-bottom:8px}
+.pmcard-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.pmcard-name{font-size:13px;font-weight:700}
+.pmcard-pct{font-size:13px;font-weight:800}
+.pmcard-pct.r{color:var(--red)}.pmcard-pct.a{color:var(--amber)}.pmcard-pct.g{color:var(--green)}
+.pmcard-nums{display:flex;justify-content:space-between;font-size:11px;color:var(--muted2);margin-top:5px}
+.rcard{background:var(--card);border:1px solid #242424;border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.rcard.r1{border-color:var(--gold);background:#1A1600}
+.rcard.r2{border-color:#9CA3AF;background:#161616}
+.rcard.r3{border-color:#B45309;background:#160E05}
+.rmedal{font-size:24px;flex-shrink:0}
+.ravatar{width:40px;height:40px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid #333;flex-shrink:0}
+.rcard.r1 .ravatar{border-color:var(--gold)}
+.rinfo{flex:1;min-width:0}
+.rname{font-size:14px;font-weight:700}
+.rsub{font-size:11px;color:var(--muted2);margin-top:2px}
+.rfc{font-size:19px;font-weight:800;color:var(--gold);text-align:right;flex-shrink:0}
+.rfc small{display:block;font-size:10px;color:var(--muted2);font-weight:400}
+.lvbadge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:800}
+.lv1{background:#1A1A1A;color:#888;border:1px solid #333}
+.lv2{background:#1A2A1A;color:#4CAF50;border:1px solid #2A4A2A}
+.lv3{background:#1A1A2A;color:#818CF8;border:1px solid #2A2A4A}
+.lv4{background:#1C1800;color:var(--gold);border:1px solid var(--gold-d)}
+.lv5{background:#1A0800;color:#FB923C;border:1px solid #7F3D00}
+.lvl-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--rs);margin-bottom:10px;border:1px solid #242424}
+.lvl-info{flex:1}
+.lvl-nr{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.lvl-name{font-size:13px;font-weight:700}
+.lvl-xp{font-size:11px;color:var(--muted2)}
+/* activity section (no FC) */
+.act-section{background:var(--card2);border:1px solid #1E1E1E;border-radius:var(--rs);padding:12px 14px;margin-bottom:10px}
+.act-title{font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.act-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #2A2A2A;font-size:13px}
+.act-row:last-child{border-bottom:none}
+.act-val{font-weight:700;color:var(--muted2)}
+/* store */
+.tier-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;padding:5px 12px;border-radius:6px;margin-bottom:10px}
+.tb-bronze{background:#2A1800;color:#CD7F32}
+.tb-prata{background:#1A1A22;color:#C0C0C0}
+.tb-ouro{background:#1C1800;color:var(--gold)}
+.tb-elite{background:#1A0800;color:#FB923C}
+.sitem{background:var(--card);border:1px solid #242424;border-radius:var(--rs);padding:12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
+.sitem.can{border-color:#2A4A2A}
+.sitem.cant{opacity:.45}
+.sitem.pend{border-color:var(--amber);background:#1A1200}
+.si-ico{font-size:26px;flex-shrink:0;margin-top:2px}
+.si-info{flex:1;min-width:0}
+.si-name{font-size:13px;font-weight:700}
+.si-partner{font-size:10px;color:var(--muted2);margin-top:1px}
+.si-desc{font-size:12px;color:var(--muted2);margin-top:4px;line-height:1.4}
+.si-right{text-align:right;flex-shrink:0}
+.si-cost{font-size:14px;font-weight:800;color:var(--gold)}
+.si-cost-l{font-size:10px;color:var(--muted2)}
+.btn-resgate{margin-top:8px;background:var(--gold);color:#000;border:none;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;display:block;width:100%;text-align:center}
+.btn-resgate:disabled{background:#2A2A2A;color:var(--muted);cursor:not-allowed}
+.btn-resgate.pend{background:var(--amber);color:#000}
+.fc-bal{background:#1C1800;border:1px solid var(--gold-d);border-radius:var(--rs);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.fcb-l{font-size:12px;color:var(--gold-d)}
+.fcb-v{font-size:22px;font-weight:800;color:var(--gold)}
+.fcb-v small{font-size:13px;font-weight:600}
+/* report form */
+.fgroup{margin-bottom:13px}
+.flabel{font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.flabel .hint{font-size:11px;color:var(--gold-d);font-weight:600;text-transform:none;letter-spacing:0}
+.flabel .no-fc{font-size:10px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;background:#222;padding:2px 6px;border-radius:8px}
+.finput{width:100%;background:var(--card2);border:1px solid #333;color:var(--text);padding:12px 14px;border-radius:var(--rs);font-size:16px}
+.finput:focus{outline:none;border-color:var(--gold-d)}
+.finput.money{font-size:18px;font-weight:700;color:var(--green)}
+.finput.total-display{background:#1A2A1A;border-color:#2A4A2A;color:var(--green);font-size:18px;font-weight:800;text-align:center}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px}
+.frow3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:13px}
+.btn-submit{width:100%;padding:16px;background:var(--gold);color:#000;border:none;border-radius:var(--r);font-size:16px;font-weight:800;cursor:pointer;margin-top:6px}
+.btn-submit:active{background:var(--gold-l);transform:scale(.98)}
+.already-badge{background:#052E16;border:1px solid #166534;border-radius:var(--r);padding:12px 16px;text-align:center;margin-bottom:14px;font-size:13px;color:var(--green)}
+.already-badge strong{display:block;font-size:16px;margin-bottom:4px}
+.fc-sum{background:#052E16;border:1px solid #166534;border-radius:var(--r);padding:14px;margin-top:12px}
+.fc-sum h3{font-size:15px;font-weight:800;color:var(--green);margin-bottom:10px}
+.fci{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #166534;font-size:13px}
+.fci:last-of-type{border-bottom:none}
+.fci-pts{font-size:14px;font-weight:800;color:var(--gold)}
+.fc-total{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:2px solid #166534}
+.fc-total-l{font-size:14px;font-weight:700}
+.fc-total-v{font-size:26px;font-weight:800;color:var(--gold)}
+.comm-card{background:#1A1A0A;border:1px solid #2A2A1A;border-radius:var(--rs);padding:12px 14px;margin-bottom:8px}
+.comm-title{font-size:11px;color:var(--gold-d);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.comm-value{font-size:20px;font-weight:800;color:var(--gold)}
+.comm-sub{font-size:11px;color:var(--muted2);margin-top:2px}
+.streak-pill{display:inline-flex;align-items:center;gap:4px;background:#1A0800;border:1px solid #7F3D00;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;color:#FB923C}
+.toast{position:fixed;bottom:calc(var(--nav)+14px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--gold);color:#000;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:700;opacity:0;transition:all .3s;z-index:999;pointer-events:none;max-width:92vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.lvup-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:1000;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:30px}
+.lvup-ov.show{display:flex}
+.lvup-ico{font-size:80px;animation:pop .5s ease}
+.lvup-title{font-size:26px;font-weight:800;color:var(--gold);margin-top:14px}
+.lvup-sub{font-size:15px;color:var(--text);margin-top:8px;line-height:1.5}
+.lvup-close{margin-top:24px;background:var(--gold);color:#000;border:none;padding:14px 36px;border-radius:30px;font-size:16px;font-weight:800;cursor:pointer}
+@keyframes pop{0%{transform:scale(.5)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+.drank{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card2);border-radius:var(--rs);margin-bottom:7px;border:1px solid #242424}
+.drank-pos{font-size:18px;width:28px;flex-shrink:0}
+.drank-name{font-size:14px;font-weight:700;flex:1}
+.drank-rev{font-size:13px;font-weight:700;color:var(--green)}
+.drank-fc{font-size:12px;color:var(--gold);font-weight:700}
+.res-item{background:var(--card);border-radius:var(--rs);padding:10px 14px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;border:1px solid #1E1E1E;gap:10px}
+.res-name{font-size:13px;font-weight:600;flex:1}
+.res-date{font-size:10px;color:var(--muted2)}
+.badge-pend{color:var(--amber);font-size:11px;font-weight:700}
+.badge-ok{color:var(--green);font-size:11px;font-weight:700}
+.arch-card{background:var(--card);border:1px solid #242424;border-radius:var(--rs);padding:12px 14px;margin-bottom:8px}
+.arch-month{font-size:13px;font-weight:800;color:var(--gold);margin-bottom:6px}
+.empty{text-align:center;padding:36px 20px;color:var(--muted2)}
+.empty .big{font-size:38px;margin-bottom:10px}
+/* ADMIN */
+.admin-ov{display:none;position:fixed;inset:0;background:var(--bg);z-index:950;overflow-y:auto;padding-bottom:80px}
+.admin-ov.show{display:block}
+.admin-header{background:var(--surface);border-bottom:1px solid #1E1E1E;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.admin-title{font-size:16px;font-weight:800;color:var(--gold)}
+.btn-close-admin{background:var(--card);border:1px solid #333;color:var(--muted2);width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.admin-tabs{display:flex;background:var(--surface);border-bottom:1px solid #1E1E1E;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.admin-tabs::-webkit-scrollbar{display:none}
+.atab{flex-shrink:0;padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.atab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.admin-content{padding:14px;padding-bottom:120px}
+.af-group{margin-bottom:14px}
+.af-label{font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block}
+.af-input{width:100%;background:var(--card2);border:1px solid #333;color:var(--text);padding:10px 12px;border-radius:var(--rs);font-size:15px}
+.af-input:focus{outline:none;border-color:var(--gold-d)}
+.af-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.btn-save{background:var(--gold);color:#000;border:none;padding:12px 20px;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:4px}
+.btn-danger{background:#2A0A0A;color:var(--red);border:1px solid #3A1212;padding:8px 14px;border-radius:var(--rs);font-size:13px;cursor:pointer}
+.btn-sm-gold{background:var(--gold-d);color:var(--gold-l);border:none;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer}
+.btn-sm-red{background:#2A0A0A;color:var(--red);border:1px solid #3A1212;padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer}
+.fc-rule-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #242424}
+.fc-rule-row:last-child{border-bottom:none}
+.fc-rule-label{flex:1;font-size:13px}
+.fc-rule-sub{font-size:11px;color:var(--muted2);margin-top:2px}
+.fc-rule-input{width:68px;background:var(--card2);border:1px solid #333;color:var(--gold);padding:8px 10px;border-radius:var(--rs);font-size:15px;font-weight:700;text-align:center}
+.fc-rule-unit{font-size:11px;color:var(--muted2);white-space:nowrap}
+.store-edit-item{background:var(--card2);border:1px solid #2A2A2A;border-radius:var(--rs);padding:12px;margin-bottom:8px}
+.sei-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sei-name{font-size:13px;font-weight:700}
+.sei-actions{display:flex;gap:6px}
+.pw-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:950;align-items:center;justify-content:center;padding:20px}
+.pw-modal.show{display:flex}
+.pw-box{background:var(--surface);border:1px solid #333;border-radius:var(--r);padding:24px;width:100%;max-width:340px;text-align:center}
+.pw-box h3{font-size:18px;font-weight:800;color:var(--gold);margin-bottom:8px}
+.pw-box p{font-size:13px;color:var(--muted2);margin-bottom:16px}
+.pw-input{width:100%;background:var(--card2);border:1px solid #333;color:var(--text);padding:12px 14px;border-radius:var(--rs);font-size:18px;text-align:center;letter-spacing:4px;margin-bottom:12px}
+.pw-input:focus{outline:none;border-color:var(--gold-d)}
+.pw-btns{display:flex;gap:8px}
+.pw-submit{flex:1;background:var(--gold);color:#000;border:none;padding:12px;border-radius:var(--rs);font-size:15px;font-weight:800;cursor:pointer}
+.pw-cancel{padding:12px 18px;background:var(--card2);color:var(--muted2);border:1px solid #333;border-radius:var(--rs);font-size:15px;cursor:pointer}
+.pw-error{color:var(--red);font-size:12px;margin-top:-6px;margin-bottom:8px;display:none}
+.pw-error.show{display:block}
+.bonus-notif{background:#052E16;border:1px solid #166534;border-radius:var(--r);padding:14px;margin-bottom:12px}
+.bonus-notif h3{font-size:14px;font-weight:800;color:var(--green);margin-bottom:8px}
+.bonus-notif-item{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid #166534}
+.bonus-notif-item:last-child{border-bottom:none}
+.bonus-notif-pts{color:var(--gold);font-weight:700}
+@media(max-width:360px){.pc-name{font-size:10px}.pc-emoji{font-size:17px}.mstat-v{font-size:17px}}
+
+/* WELCOME SCREEN */
+.welcome-screen{display:none;position:fixed;inset:0;background:var(--bg);z-index:800;align-items:center;justify-content:center;padding:24px;flex-direction:column}
+.welcome-screen.show{display:flex}
+.welcome-logo{font-size:32px;font-weight:800;color:var(--gold);letter-spacing:2px;margin-bottom:4px}
+.welcome-sub{font-size:13px;color:var(--muted2);margin-bottom:32px}
+.welcome-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px;text-align:center}
+.welcome-cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px}
+.welcome-card{background:var(--card);border:2px solid #2A2A2A;border-radius:var(--r);padding:16px 20px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:border-color .15s,background .15s;width:100%;text-align:left;-webkit-appearance:none;appearance:none;font-family:inherit;font-size:inherit;color:inherit}
+.welcome-card:active,.welcome-card:focus{border-color:var(--gold);background:#1C1800;outline:none}
+.welcome-card-emoji{font-size:32px;flex-shrink:0}
+.welcome-card-info{flex:1}
+.welcome-card-name{font-size:17px;font-weight:700}
+.welcome-card-sched{font-size:12px;color:var(--muted2);margin-top:2px}
+.welcome-card-pin{font-size:11px;color:var(--gold-d);margin-top:4px}
+.welcome-card-arrow{font-size:18px;color:var(--muted);flex-shrink:0}
+.switch-profile-btn{display:flex;align-items:center;gap:5px;background:none;border:none;color:var(--muted2);font-size:12px;cursor:pointer;padding:4px 8px}
+.switch-profile-btn:hover{color:var(--text)}
+
+/* PIN MODAL */
+.pin-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:900;align-items:center;justify-content:center;padding:20px}
+.pin-modal.show{display:flex}
+.pin-box{background:var(--surface);border:1px solid #333;border-radius:var(--r);padding:28px 24px;width:100%;max-width:320px;text-align:center}
+.pin-avatar{font-size:48px;margin-bottom:6px}
+.pin-player-name{font-size:20px;font-weight:800;color:var(--text);margin-bottom:4px}
+.pin-subtitle{font-size:13px;color:var(--muted2);margin-bottom:20px}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid #444;background:transparent;transition:all .15s}
+.pin-dot.filled{background:var(--gold);border-color:var(--gold)}
+.pin-dot.error{background:var(--red);border-color:var(--red)}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.pin-key{background:var(--card2);border:1px solid #333;border-radius:var(--rs);padding:16px 8px;font-size:20px;font-weight:700;color:var(--text);cursor:pointer;transition:background .1s;user-select:none}
+.pin-key:active{background:#333}
+.pin-key.del{font-size:16px;color:var(--muted2)}
+.pin-key.zero{grid-column:2}
+.pin-error{color:var(--red);font-size:13px;font-weight:600;min-height:20px;margin-bottom:4px}
+.pin-cancel{color:var(--muted2);font-size:13px;cursor:pointer;text-decoration:underline;background:none;border:none;padding:4px}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="spin">🏖️</div>
+  <div style="color:var(--gold);font-size:18px;font-weight:800">POINT 43</div>
+  <div style="color:var(--muted2);font-size:13px">Conectando ao servidor...</div>
+</div>
+
+<div class="app-header">
+  <div class="hdr-top">
+    <div class="logo">POINT 43 <span>Arena Comercial</span></div>
+    <div class="hdr-right">
+      <div class="conn-dot" id="connDot" title="Status da conexão"></div>
+      <div class="date-chip" id="dateChip"></div>
+      <button class="switch-profile-btn" onclick="showWelcomeScreen()" title="Trocar perfil">🔄</button>
+      <button class="btn-admin" id="btnAdmin" onclick="openAdmin()">⚙️</button>
+    </div>
+  </div>
+  <div class="pcards" id="pcardsEl"></div>
+</div>
+
+<div class="tqb" id="tqbEl"></div>
+
+<div class="content">
+  <div id="tab-dashboard"></div>
+  <div id="tab-painel"  style="display:none"></div>
+  <div id="tab-report"  style="display:none"></div>
+  <div id="tab-loja"    style="display:none"></div>
+  <div id="tab-ranking" style="display:none"></div>
+</div>
+
+<nav class="bnav">
+  <div class="ni active" onclick="goTab('dashboard')"><div class="ico">📊</div>Dashboard</div>
+  <div class="ni"        onclick="goTab('painel')"   ><div class="ico">👤</div>Painel</div>
+  <div class="ni"        onclick="goTab('report')"   ><div class="ico">📝</div>Report</div>
+  <div class="ni"        onclick="goTab('loja')"     ><div class="ico">🛍️</div>Loja FC</div>
+  <div class="ni"        onclick="goTab('ranking')"  ><div class="ico">🏆</div>Ranking</div>
+</nav>
+
+<!-- WELCOME SCREEN -->
+<div class="welcome-screen" id="welcomeScreen">
+  <div class="welcome-logo">POINT 43</div>
+  <div class="welcome-sub">Arena Comercial</div>
+  <div class="welcome-title">👋 Quem é você?</div>
+  <div class="welcome-cards" id="welcomeCards"></div>
+  <button onclick="openAdminFromWelcome()" style="margin-top:28px;background:none;border:1px solid #333;color:var(--muted2);padding:10px 24px;border-radius:30px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px">
+    ⚙️ Área Admin
+  </button>
+</div>
+
+<!-- PIN MODAL -->
+<div class="pin-modal" id="pinModal">
+  <div class="pin-box">
+    <div class="pin-avatar" id="pinAvatar">🌟</div>
+    <div class="pin-player-name" id="pinPlayerName">Emilly</div>
+    <div class="pin-subtitle">Digite seu PIN para entrar</div>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-keypad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key zero" onclick="pinKey('0')">0</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+    </div>
+    <button class="pin-cancel" onclick="closePinModal()">Cancelar</button>
+  </div>
+</div>
+
+<div class="pw-modal" id="pwModal">
+  <div class="pw-box">
+    <h3>🔐 Área Admin</h3>
+    <p id="pwPromptText">Digite a senha de administrador</p>
+    <input class="pw-input" type="password" id="pwInput" placeholder="••••" maxlength="20" onkeydown="if(event.key==='Enter')pwSubmit()">
+    <div class="pw-error" id="pwError">Senha incorreta</div>
+    <div class="pw-btns">
+      <button class="pw-cancel" onclick="closePwModal()">Cancelar</button>
+      <button class="pw-submit" onclick="pwSubmit()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="admin-ov" id="adminOv">
+  <div class="admin-header">
+    <div class="admin-title">⚙️ Administrador</div>
+    <button class="btn-close-admin" onclick="closeAdmin()">✕</button>
+  </div>
+  <div class="admin-tabs" id="adminTabsEl"></div>
+  <div class="admin-content" id="adminContent"></div>
+</div>
+
+<div class="lvup-ov" id="lvupOv">
+  <div class="lvup-ico" id="lvupIco">🏆</div>
+  <div class="lvup-title">SUBIU DE NÍVEL!</div>
+  <div class="lvup-sub" id="lvupSub"></div>
+  <button class="lvup-close" onclick="document.getElementById('lvupOv').classList.remove('show')">🔥 Continuar</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// DEFAULTS
+// ═══════════════════════════════════════════
+const DEF = {
+  dailyQuota:3100, monthQuota:93000, superacao:128000, indQuota:31000,
+  dailyTargets:{ abordagens:30, leadsQuentes:6, indicacoes:10, aulaExp:2 },
+  monthTargets:{ abordagens:660, leadsQuentes:132, indicacoes:220, aulaExp:44, vendas:30 },
+};
+
+// Default FC rules — all editable in admin
+const DEF_FC = {
+  report:        5,   // report preenchido
+  vendaExtra:    15,  // por venda extra
+  matricula:     15,  // por matrícula realizada
+  renovacao:     8,   // por renovação
+  upsell:        20,  // por upsell
+  aulaExp:       15,  // por aula experimental
+  campanha:      10,  // por campanha realizada
+  postagem:      5,   // por postagem/conteúdo
+  completudeAtiv:3,   // bônus preencher todos os campos de atividade
+  gatilho4:      30,  // 4+ planos no dia
+  cotaDiaria:    50,  // cota diária do time
+  streak5:       50,  // sequência 5 dias
+  cotaIndMes:    100, // cota individual mensal
+  cotaTimeMes:   80,  // cota time mensal
+  superacao:     150, // meta superação
+};
+
+const FC_RULES_META = [
+  { key:'report',         label:'Report preenchido',         sub:'Por dia',                         unit:'FC/dia'     },
+  { key:'vendaExtra',     label:'Venda extra',               sub:'Por unidade vendida',              unit:'FC/venda'   },
+  { key:'matricula',      label:'Matrícula realizada',       sub:'Por matrícula fechada',            unit:'FC/matríc.' },
+  { key:'renovacao',      label:'Renovação',                 sub:'Por contrato renovado',            unit:'FC/renov.'  },
+  { key:'upsell',         label:'Upsell realizado',          sub:'Por upgrade de plano',             unit:'FC/upsell'  },
+  { key:'aulaExp',        label:'Aula experimental',         sub:'Por aula agendada',                unit:'FC/aula'    },
+  { key:'campanha',       label:'Campanha realizada',        sub:'Por campanha em grupo/WhatsApp',   unit:'FC/camp.'   },
+  { key:'postagem',       label:'Postagem/Conteúdo',         sub:'Por post em grupo ou redes',       unit:'FC/post'    },
+  { key:'completudeAtiv', label:'Bônus completude atividade',sub:'Preencheu abordagens+leads+indic.',unit:'FC/dia'     },
+  { key:'gatilho4',       label:'Gatilho 4 planos',          sub:'4+ entre matrículas + upsells no dia',      unit:'FC/dia' },
+  { key:'cotaDiaria',     label:'Cota diária do time',       sub:'Time bate R$3.100 no dia',         unit:'FC/dia'     },
+  { key:'streak5',        label:'Sequência 5 dias',          sub:'5 dias seguidos com cota',         unit:'FC bônus'   },
+  { key:'cotaIndMes',     label:'Cota individual mensal',    sub:'Vendedora bate meta mensal',       unit:'FC/mês'     },
+  { key:'cotaTimeMes',    label:'Cota time mensal',          sub:'Time bate R$93k no mês',           unit:'FC/mês'     },
+  { key:'superacao',      label:'Meta de superação',         sub:'Time bate R$128k no mês',          unit:'FC/mês'     },
+];
+
+const LEVELS = [
+  { n:1, name:'Rookie',         ico:'🥉', min:0,    max:199   },
+  { n:2, name:'Player',         ico:'🥈', min:200,  max:499   },
+  { n:3, name:'Specialist',     ico:'🏅', min:500,  max:999   },
+  { n:4, name:'Champion',       ico:'🥇', min:1000, max:1999  },
+  { n:5, name:'Elite Point 43', ico:'👑', min:2000, max:Infinity },
+];
+
+const DEFAULT_STORE = [
+  { id:'b1',tier:'bronze',ico:'🧴',name:'Squeeze Point 43',    partner:'Point 43',            desc:'Squeeze personalizada + grip de cortesia',                  cost:100 },
+  { id:'b2',tier:'bronze',ico:'🎾',name:'Kit Grip Premium',    partner:'Loja Parceira',       desc:'Grip + overgrip importado para raquete',                    cost:120 },
+  { id:'b3',tier:'bronze',ico:'🍕',name:'Voucher Lanche',      partner:'Parceiro Gastro',     desc:'Vale-lanche em restaurante parceiro',                       cost:180 },
+  { id:'b4',tier:'bronze',ico:'🏖️',name:'Aula + Convidado',   partner:'Point 43',            desc:'Aula avulsa para você + 1 convidado',                       cost:200 },
+  { id:'p1',tier:'prata', ico:'👕',name:'Camiseta Oficial P43',partner:'Point 43',            desc:'Camiseta premium coleção 2026',                             cost:300 },
+  { id:'p2',tier:'prata', ico:'🎽',name:'Kit Acessórios Beach',partner:'Loja Parceira',       desc:'Kit completo para o court',                                 cost:350 },
+  { id:'p3',tier:'prata', ico:'🍷',name:'Jantar para Dois',    partner:'Restaurante Parceiro',desc:'Jantar em restaurante parceiro de Londrina',                cost:450 },
+  { id:'p4',tier:'prata', ico:'🎁',name:'1 Mês Plano Light',   partner:'Point 43',            desc:'Plano para presentear quem você quiser',                    cost:500 },
+  { id:'o1',tier:'ouro',  ico:'🏓',name:'Raquete Beach Tennis',partner:'Marca Parceira',      desc:'Raquete profissional de marca parceira',                    cost:650 },
+  { id:'o2',tier:'ouro',  ico:'💆',name:'Dia de Spa',          partner:'Spa Parceiro',        desc:'Massagem + tratamentos em spa parceiro de Londrina',        cost:700 },
+  { id:'o3',tier:'ouro',  ico:'👟',name:'Kit Roupa Esportiva', partner:'Marca Esportiva',     desc:'Look completo de marca parceira',                           cost:800 },
+  { id:'e1',tier:'elite', ico:'🏨',name:'Fim de Semana Pousada',partner:'Pousada Parceira',   desc:'Hospedagem para 2 (sexta a domingo)',                       cost:1000 },
+  { id:'e2',tier:'elite', ico:'👑',name:'Experiência VIP P43', partner:'Point 43',            desc:'Dia VIP + jantar exclusivo com o time',                     cost:1200 },
+  { id:'e3',tier:'elite', ico:'✈️',name:'Viagem de Incentivo', partner:'Point 43',            desc:'Destino surpresa — viagem especial!',                       cost:2000 },
+];
+
+const DEFAULT_PLAYERS = [
+  { id:0, name:'Emilly', emoji:'🌟', schedule:'Home Office · 8h/dia',             fitcoins:0, streak:0, lastReportDate:null },
+  { id:1, name:'Julia',  emoji:'⚡', schedule:'Home 11-13h + Presencial 16-22h',  fitcoins:0, streak:0, lastReportDate:null },
+  { id:2, name:'Luana',  emoji:'🔥', schedule:'Presencial 13h30-19h30 · 6h/dia', fitcoins:0, streak:0, lastReportDate:null },
+];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let S = {
+  players:       JSON.parse(JSON.stringify(DEFAULT_PLAYERS)),
+  currentPlayer: 0,
+  reports:       {},
+  resgates:      [],
+  monthConfig:   {},
+  fcRules:       {},
+  customStore:   null,
+  adminPassword: '',
+  lastAutoClose: null,
+  monthArchive:  {},
+  currentTab:    'dashboard',
+  pendingBonus:   null,
+  monthChampion:  null,  // { pid, name, emoji, month } — campeã do mês anterior
+  pins:           { 0:'', 1:'', 2:'' },  // PINs isolados — nunca são afetados pelo merge de players
+};
+let adminUnlocked = false;
+let currentAdminTab = 'overview';
+let reportDate = null; // null = usa today()
+
+// ── FIREBASE CONFIG ──────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDaqcz5zUxy1AYh7NEmh9-4wNwk9I627Es",
+  authDomain:        "point-43-arena-comercial.firebaseapp.com",
+  projectId:         "point-43-arena-comercial",
+  storageBucket:     "point-43-arena-comercial.firebasestorage.app",
+  messagingSenderId: "396529161590",
+  appId:             "1:396529161590:web:473d302e178d4f063fd657",
+  databaseURL:       "https://point-43-arena-comercial-default-rtdb.firebaseio.com",
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const DB   = firebase.database();
+const ROOT = DB.ref('point43');
+
+// Campos que ficam LOCAIS por dispositivo (não sobem pro Firebase)
+const LOCAL_KEYS = ['currentPlayer','currentTab'];
+
+function saveLocal(){
+  try{ localStorage.setItem('p43_local', JSON.stringify({ currentPlayer:S.currentPlayer, currentTab:S.currentTab })); }catch(e){}
+}
+function loadLocal(){
+  try{
+    const d = JSON.parse(localStorage.getItem('p43_local')||'{}');
+    if(d.currentPlayer != null) S.currentPlayer = d.currentPlayer;
+    if(d.currentTab)            S.currentTab    = d.currentTab;
+  }catch(e){}
+}
+
+// ── SESSION (por dispositivo, expira todo dia) ────────
+function saveSession(playerIdx){
+  try{ localStorage.setItem('p43_session', JSON.stringify({ player:playerIdx, date:today() })); }catch(e){}
+}
+function clearSession(){
+  try{ localStorage.removeItem('p43_session'); }catch(e){}
+}
+function loadSession(){
+  try{
+    const d = JSON.parse(localStorage.getItem('p43_session')||'null');
+    if(!d) return null;
+    if(d.date !== today()) return null;                  // expirou (novo dia)
+    const currentPin = getPlayerPin(d.player);
+    if(currentPin){
+      if(!d.pinOk)               return null;           // nunca verificou PIN
+      if(d.pinVal !== currentPin) return null;           // PIN mudou após a sessão
+    }
+    return d;
+  }catch(e){ return null; }
+}
+
+// ── WELCOME SCREEN ────────────────────────────────────
+function showWelcomeScreen(){
+  const el = document.getElementById('welcomeCards');
+  el.innerHTML = S.players.map((p,i)=>`
+    <button class="welcome-card" onclick="welcomeSelectPlayer(${i})">
+      <div class="welcome-card-emoji">${p.emoji}</div>
+      <div class="welcome-card-info">
+        <div class="welcome-card-name">${p.name}</div>
+        <div class="welcome-card-sched">${p.schedule}</div>
+        <div class="welcome-card-pin">${getPlayerPin(i) ? '🔒 PIN configurado' : '⚠️ Sem PIN — entre direto'}</div>
+      </div>
+      <div class="welcome-card-arrow">›</div>
+    </button>`).join('');
+  document.getElementById('welcomeScreen').classList.add('show');
+}
+
+function hideWelcomeScreen(){
+  document.getElementById('welcomeScreen').classList.remove('show');
+}
+
+function openAdminFromWelcome(){
+  // Abre o admin sem precisar entrar por um card
+  // Depois de autenticar, permanece na welcome screen até escolher um perfil
+  openAdmin();
+}
+
+function welcomeSelectPlayer(i){
+  const pin = getPlayerPin(i);
+  if(!pin){
+    finalizeLogin(i);
+    return;
+  }
+  // Já autenticou o PIN hoje neste dispositivo? Entra direto
+  if(sessionPinOk(i)){
+    finalizeLogin(i);
+    return;
+  }
+  // Pede PIN
+  _pinTarget      = i;
+  _pinCurrent     = '';
+  _pinFromWelcome = true;
+  const p = S.players[i];
+  document.getElementById('pinAvatar').textContent     = p.emoji;
+  document.getElementById('pinPlayerName').textContent = p.name;
+  document.getElementById('pinError').textContent      = '';
+  updatePinDots('');
+  document.getElementById('pinModal').classList.add('show');
+}
+
+function finalizeLogin(i){
+  S.currentPlayer = i;
+  const pin = getPlayerPin(i);
+  // Grava o PIN atual na sessão — se o PIN mudar, sessão fica inválida
+  try{ localStorage.setItem('p43_session', JSON.stringify({
+    player: i,
+    date:   today(),
+    pinOk:  true,
+    pinVal: pin   // PIN que foi verificado
+  })); }catch(e){}
+  saveLocal();
+  hideWelcomeScreen();
+  renderAll();
+  showToast(`Bem-vinda, ${S.players[i].name}! 🏖️`);
+}
+
+// Sessão com PIN verificado hoje E com o PIN correto?
+function sessionPinOk(playerIdx){
+  try{
+    const d = JSON.parse(localStorage.getItem('p43_session')||'null');
+    if(!d) return false;
+    if(d.date !== today()) return false;
+    if(d.player !== playerIdx) return false;
+    if(!d.pinOk) return false;
+    // Se o PIN mudou desde que a sessão foi criada → inválida
+    const currentPin = getPlayerPin(playerIdx);
+    if(currentPin && d.pinVal !== currentPin) return false;
+    return true;
+  }catch(e){ return false; }
+}
+
+function save(){
+  saveLocal();
+  const payload = {
+    players:       S.players,
+    reports:       S.reports       || {},
+    resgates:      S.resgates      || [],
+    monthConfig:   S.monthConfig   || {},
+    fcRules:       S.fcRules       || {},
+    customStore:   S.customStore   || null,
+    adminPassword: S.adminPassword || '',
+    lastAutoClose: S.lastAutoClose || null,
+    monthArchive:  S.monthArchive  || {},
+    pendingBonus:   S.pendingBonus   || null,
+    monthChampion:  S.monthChampion  || null,
+    pins:           S.pins           || { 0:'', 1:'', 2:'' },
+  };
+  ROOT.set(payload)
+    .catch(e=>{ console.error('Firebase write error:',e); showToast('Erro ao salvar ☁️',true); });
+}
+
+function mergeFirebaseData(data){
+  const cp = S.currentPlayer;
+  const ct = S.currentTab;
+  S = { ...S, ...data };
+  S.currentPlayer = cp;
+  S.currentTab    = ct;
+
+  // Firebase pode retornar players como objeto {0:{...},1:{...}} em vez de array
+  if(S.players && !Array.isArray(S.players)){
+    S.players = Object.keys(S.players)
+      .sort((a,b)=>Number(a)-Number(b))
+      .map(k => S.players[k]);
+  }
+
+  // garantir estrutura dos players preservando PIN e outros campos extras
+  DEFAULT_PLAYERS.forEach((dp,i)=>{
+    if(!S.players[i]) S.players[i] = {...dp};
+    else {
+      const existing = S.players[i];
+      S.players[i] = { ...dp, ...existing }; // existing sobrescreve defaults (inclui pin)
+    }
+  });
+
+  // garantir arrays/objetos
+  if(!Array.isArray(S.resgates)) S.resgates    = [];
+  if(!S.reports)                  S.reports     = {};
+  if(!S.monthConfig)              S.monthConfig = {};
+  if(!S.fcRules)                  S.fcRules     = {};
+  if(!S.monthArchive)             S.monthArchive  = {};
+  if(S.monthChampion === undefined) S.monthChampion = null;
+  if(!S.pins)                     S.pins        = { 0:'', 1:'', 2:'' };
+}
+
+// PINs ficam em S.pins separado — nunca misturado com player data
+function getPlayerPin(i){
+  const pins = S.pins || {};
+  const val  = pins[i] || pins[String(i)] || '';
+  return val ? String(val) : '';
+}
+
+// ═══════════════════════════════════════════
+// FC RULES HELPER
+// ═══════════════════════════════════════════
+function fc(key){ return (S.fcRules && S.fcRules[key] != null) ? S.fcRules[key] : DEF_FC[key]; }
+
+// ═══════════════════════════════════════════
+// DATE HELPERS
+// ═══════════════════════════════════════════
+function today(){ return new Date().toISOString().slice(0,10); }
+function monthKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function prevMonthKey(){
+  const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+function yesterday(){ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+function daysElapsed(){ return new Date().getDate(); }
+function fmtMoney(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtMoneyDec(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(iso){ if(!iso)return'—'; const[y,m,d]=iso.split('-'); return`${d}/${m}`; }
+function monthLabel(mk){
+  if(!mk)return'—';
+  const[y,m]=mk.split('-');
+  const n=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  return `${n[parseInt(m)-1]}/${y}`;
+}
+
+// ═══════════════════════════════════════════
+// CONFIG HELPERS
+// ═══════════════════════════════════════════
+function getCfg(mk){
+  const c=S.monthConfig[mk]||{};
+  return {
+    dailyQuota:   c.dailyQuota   ?? DEF.dailyQuota,
+    monthQuota:   c.monthQuota   ?? DEF.monthQuota,
+    superacao:    c.superacao    ?? DEF.superacao,
+    indQuota:     c.indQuota     ?? DEF.indQuota,
+    dailyTargets: c.dailyTargets ? {...c.dailyTargets} : {...DEF.dailyTargets},
+    monthTargets: c.monthTargets ? {...c.monthTargets} : {...DEF.monthTargets},
+  };
+}
+function curCfg(){ return getCfg(monthKey()); }
+function getStore(){ return S.customStore || JSON.parse(JSON.stringify(DEFAULT_STORE)); }
+
+// ═══════════════════════════════════════════
+// REPORT HELPERS
+// ═══════════════════════════════════════════
+function getReport(pid,date){ return S.reports[`${pid}_${date}`]||null; }
+function todayReport(pid){ return getReport(pid,today()); }
+
+function teamRevForDate(date){
+  return S.players.reduce((s,p)=>{
+    const r=getReport(p.id,date);
+    return s+(r?(r.valorVendasExtras||0)+(r.valorMatriculas||0)+(r.valorRenovacoes||0):0);
+  },0);
+}
+function todayTeamRev(){ return teamRevForDate(today()); }
+function teamHitForDate(date){ return teamRevForDate(date)>=getCfg(date.slice(0,7)).dailyQuota; }
+function recoveryAmt(){
+  const yRev=teamRevForDate(yesterday());
+  if(yRev===0) return 0;
+  return Math.max(0, curCfg().dailyQuota - yRev);
+}
+function effectiveQuota(){ return curCfg().dailyQuota + recoveryAmt(); }
+
+function monthRevForKey(pid,mk){
+  return Object.keys(S.reports)
+    .filter(k=>k.startsWith(`${pid}_${mk}`))
+    .reduce((s,k)=>s+(S.reports[k].valorVendasExtras||0)+(S.reports[k].valorMatriculas||0)+(S.reports[k].valorRenovacoes||0),0);
+}
+function monthRevNovas(pid){
+  const mk=monthKey();
+  return Object.keys(S.reports).filter(k=>k.startsWith(`${pid}_${mk}`))
+    .reduce((s,k)=>s+(S.reports[k].valorVendasExtras||0)+(S.reports[k].valorMatriculas||0),0);
+}
+function monthRevRenov(pid){
+  const mk=monthKey();
+  return Object.keys(S.reports).filter(k=>k.startsWith(`${pid}_${mk}`))
+    .reduce((s,k)=>s+(S.reports[k].valorRenovacoes||0),0);
+}
+function monthRev(pid){ return monthRevForKey(pid,monthKey()); }
+function monthStat(pid,field){
+  const mk=monthKey();
+  return Object.keys(S.reports).filter(k=>k.startsWith(`${pid}_${mk}`))
+    .reduce((s,k)=>s+(S.reports[k][field]||0),0);
+}
+function totalTeamMonthRev(){ return S.players.reduce((s,p)=>s+monthRev(p.id),0); }
+
+// ═══════════════════════════════════════════
+// LEVELS
+// ═══════════════════════════════════════════
+function getLevel(f){
+  for(let i=LEVELS.length-1;i>=0;i--) if(f>=LEVELS[i].min) return LEVELS[i];
+  return LEVELS[0];
+}
+function lvProgress(f){
+  const lv=getLevel(f);
+  if(lv.n===5) return{cur:f-lv.min,max:lv.min,pct:100};
+  const cur=f-lv.min, max=lv.max-lv.min+1;
+  return{cur,max,pct:Math.min(100,Math.round((cur/max)*100))};
+}
+function lvBadge(f){
+  const lv=getLevel(f);
+  return `<span class="lvbadge lv${lv.n}">${lv.ico} ${lv.name}</span>`;
+}
+
+// ═══════════════════════════════════════════
+// FC CALCULATION — verified metrics only
+// ═══════════════════════════════════════════
+function calcFC(pid, r){
+  const items=[];
+  const add=(label,pts)=>{ if(pts>0) items.push({label,pts}); };
+
+  add('📝 Report preenchido', fc('report'));
+
+  // Per-unit verified metrics
+  const ve=r.qtdVendasExtras||0, ma=r.qtdMatriculas||0, re=r.qtdRenovacoes||0, up=r.qtdUpsells||0, ae=r.aulaExp||0;
+  const ca=r.qtdCampanhas||0, po=r.qtdPostagens||0;
+  if(ve>0) add(`✅ ${ve} venda${ve>1?'s':''} extra${ve>1?'s':''}`, ve*fc('vendaExtra'));
+  if(ma>0) add(`🎓 ${ma} matrícula${ma>1?'s':''} realizada${ma>1?'s':''}`, ma*fc('matricula'));
+  if(re>0) add(`🔄 ${re} renovação${re>1?'ões':''}`, re*fc('renovacao'));
+  if(up>0) add(`⬆️ ${up} upsell${up>1?'s':''}`, up*fc('upsell'));
+  if(ae>0) add(`🎾 ${ae} aula${ae>1?'s':''} experimental`, ae*fc('aulaExp'));
+  if(ca>0) add(`📣 ${ca} campanha${ca>1?'s':''} realizada${ca>1?'s':''}`, ca*fc('campanha'));
+  if(po>0) add(`📸 ${po} postagem${po>1?'ns':''}`, po*fc('postagem'));
+
+  // Bônus completude atividade
+  if((r.abordagens||0)>0 && (r.leadsQuentes||0)>0 && (r.indicacoes||0)>0)
+    add('⭐ Bônus completude atividade', fc('completudeAtiv'));
+
+  // Gatilho 4 planos (matrículas + upsells — vendas extras e renovações não contam)
+  const totalPlans = ma+up;
+  if(totalPlans>=4) add('⚡ Gatilho 4 planos no dia', fc('gatilho4'));
+
+  // Streak 5
+  if((S.players[pid].streak||0)>=5) add('🔥 Sequência de 5 dias', fc('streak5'));
+
+  // Cota diária do time (preview with this report)
+  // Exclui o report anterior da própria jogadora para evitar dupla contagem ao editar
+  const activeD = getActiveDate ? getActiveDate() : today();
+  const existingRep = getReport(pid, activeD);
+  const existingRev = existingRep
+    ? (existingRep.valorVendasExtras||0)+(existingRep.valorMatriculas||0)+(existingRep.valorRenovacoes||0)
+    : 0;
+  const otherTeamRev = teamRevForDate(activeD) - existingRev;
+  const previewRev = otherTeamRev+(r.valorVendasExtras||0)+(r.valorMatriculas||0)+(r.valorRenovacoes||0);
+  const quotaForDay = activeD === today() ? effectiveQuota() : getCfg(activeD.slice(0,7)).dailyQuota;
+  if(previewRev >= quotaForDay) add('🏆 Cota diária do time', fc('cotaDiaria'));
+
+  const total=items.reduce((s,i)=>s+i.pts,0);
+  return{items,total};
+}
+
+function calcDailyComm(pid){
+  const r=todayReport(pid); if(!r) return 0;
+  if(!teamHitForDate(today())) return 0;
+  return ((r.valorVendasExtras||0)+(r.valorMatriculas||0))*0.02+(r.valorRenovacoes||0)*0.01;
+}
+function calcMonthComm(pid){
+  const total = monthRev(pid);
+  const teamTotal = totalTeamMonthRev();
+  const cfg = curCfg();
+  const rate = teamTotal >= cfg.monthQuota ? 0.025 : 0.015;
+  return total * rate;
+}
+function monthCommRate(){
+  const teamTotal = totalTeamMonthRev();
+  const cfg = curCfg();
+  return teamTotal >= cfg.monthQuota ? 0.025 : 0.015;
+}
+
+// ═══════════════════════════════════════════
+// STREAK
+// ═══════════════════════════════════════════
+function updateStreak(pid){
+  const p=S.players[pid], t=today(), yest=yesterday();
+  if(p.lastReportDate===t) return;
+  if(p.lastReportDate===yest) p.streak=(p.streak||0)+1;
+  else p.streak=1;
+  p.lastReportDate=t;
+}
+
+// ═══════════════════════════════════════════
+// MANUAL MONTH CLOSE (admin-triggered)
+// ═══════════════════════════════════════════
+function manualMonthClose(){
+  const mk = monthKey();
+  if(!confirm(`Fechar ${monthLabel(mk)} e resetar FitCoins?\n\nIsso vai:\n• Arquivar resultados e ranking do mês\n• Distribuir bônus de metas atingidas\n• Zerar FitCoins e streak de todas as jogadoras\n\nResgates pendentes continuam válidos.\n\n⚠️ Esta ação não pode ser desfeita.`)) return;
+
+  const cfg = getCfg(mk);
+  const fcLog = [];
+  const teamTotal = S.players.reduce((s,p) => s + monthRevForKey(p.id, mk), 0);
+
+  // Distribui bônus mensais
+  S.players.forEach(p => {
+    const pRev = monthRevForKey(p.id, mk);
+    const items = [];
+    if(pRev >= cfg.indQuota){
+      p.fitcoins = (p.fitcoins||0) + fc('cotaIndMes');
+      items.push({ label:`🎯 Cota individual`, pts: fc('cotaIndMes') });
+    }
+    if(teamTotal >= cfg.monthQuota){
+      p.fitcoins = (p.fitcoins||0) + fc('cotaTimeMes');
+      items.push({ label:`🏆 Cota time`, pts: fc('cotaTimeMes') });
+    }
+    if(teamTotal >= cfg.superacao){
+      p.fitcoins = (p.fitcoins||0) + fc('superacao');
+      items.push({ label:`🚀 Superação`, pts: fc('superacao') });
+    }
+    if(items.length) fcLog.push({ pid: p.id, name: p.name, items, total: items.reduce((s,i) => s+i.pts, 0) });
+  });
+
+  // Arquiva com ranking final de FC (após bônus, antes do reset)
+  S.monthArchive[mk] = {
+    revenue:       teamTotal,
+    fcLog,
+    playerRanking: S.players.map(p => ({ name: p.name, emoji: p.emoji, fitcoins: p.fitcoins || 0 })),
+    closedAt:      new Date().toISOString(),
+    closedBy:      'admin',
+  };
+
+  // Elege a campeã do mês (quem tinha mais FC antes do reset)
+  const champion = S.players.reduce((best, p) => (p.fitcoins||0) > (best.fitcoins||0) ? p : best, S.players[0]);
+  S.monthChampion = { pid: champion.id, name: champion.name, emoji: champion.emoji, month: mk };
+  fcLog.push({ pid: champion.id, name: champion.name, items: [{ label:`👑 Campeã do mês ${monthLabel(mk)}`, pts: 150 }], total: 150, isChampion: true });
+
+  if(fcLog.length) S.pendingBonus = { month: mk, fcLog };
+  S.lastAutoClose = mk;
+
+  // RESET mensal: zera FC, streak e lastReportDate
+  S.players.forEach(p => { p.fitcoins = 0; p.streak = 0; p.lastReportDate = null; });
+
+  // Campeã começa o novo mês com +150 FC
+  const champIdx = S.players.findIndex(p => p.id === champion.id);
+  if(champIdx >= 0) S.players[champIdx].fitcoins = 150;
+
+  save();
+  showToast(`${monthLabel(mk)} fechado e FitCoins resetados! ✅`);
+  renderAll();
+  renderAdminContent();
+}
+
+// ═══════════════════════════════════════════
+// SUBMIT REPORT
+// ═══════════════════════════════════════════
+function submitReport(e){
+  e.preventDefault();
+  const pid=S.currentPlayer, p=S.players[pid];
+  const valVE=parseFloat(document.getElementById('f_valve').value)||0;
+  const valMA=parseFloat(document.getElementById('f_valma').value)||0;
+  const valR =parseFloat(document.getElementById('f_valr').value)||0;
+  const r={
+    qtdVendasExtras:  parseInt(document.getElementById('f_qtdve').value)||0,
+    qtdMatriculas:    parseInt(document.getElementById('f_qtdma').value)||0,
+    qtdRenovacoes:    parseInt(document.getElementById('f_qtdr').value)||0,
+    qtdUpsells:       parseInt(document.getElementById('f_qtdu').value)||0,
+    aulaExp:          parseInt(document.getElementById('f_aula').value)||0,
+    qtdCampanhas:     parseInt(document.getElementById('f_camp').value)||0,
+    qtdPostagens:     parseInt(document.getElementById('f_post').value)||0,
+    abordagens:       parseInt(document.getElementById('f_abord').value)||0,
+    leadsQuentes:     parseInt(document.getElementById('f_leads').value)||0,
+    indicacoes:       parseInt(document.getElementById('f_indic').value)||0,
+    valorVendasExtras: valVE,
+    valorMatriculas:   valMA,
+    valorRenovacoes:   valR,
+    obs:              document.getElementById('f_obs').value||'',
+    submittedAt:      new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    date:             getActiveDate(),
+  };
+  const prevLv=getLevel(p.fitcoins||0);
+  const result=calcFC(pid,r);
+  r.fcEarned=result.total; r.fcBreakdown=result.items;
+
+  // Devolve FC do report anterior se estiver editando
+  const prevReport = getReport(pid, getActiveDate());
+  if(prevReport && prevReport.fcEarned){
+    p.fitcoins = Math.max(0, (p.fitcoins||0) - prevReport.fcEarned);
+  }
+
+  S.reports[`${pid}_${getActiveDate()}`]=r;
+  p.fitcoins=(p.fitcoins||0)+result.total;
+  if(getActiveDate() === today()) updateStreak(pid);
+  save();
+  const newLv=getLevel(p.fitcoins);
+  if(newLv.n>prevLv.n){
+    document.getElementById('lvupIco').textContent=newLv.ico;
+    document.getElementById('lvupSub').innerHTML=`Você chegou ao nível <strong>${newLv.n}</strong><br><span style="font-size:20px">${newLv.ico} ${newLv.name}</span>`;
+    document.getElementById('lvupOv').classList.add('show');
+  } else {
+    showToast(`+${result.total} FitCoins ganhos! 🪙`);
+  }
+  renderAll();
+  setTimeout(()=>{ const el=document.getElementById('fcSummary'); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); },200);
+}
+
+// ═══════════════════════════════════════════
+// RESGATE
+// ═══════════════════════════════════════════
+function resgate(itemId){
+  const pid=S.currentPlayer, p=S.players[pid];
+  const item=getStore().find(i=>i.id===itemId);
+  if(!item) return;
+  if((p.fitcoins||0)<item.cost){ showToast('FitCoins insuficientes 😅',true); return; }
+  if(!confirm(`Resgatar "${item.name}" por ${item.cost} FC?\nUm gestor precisará aprovar.`)) return;
+  p.fitcoins=(p.fitcoins||0)-item.cost;
+  S.resgates.push({pid,itemId,itemName:item.name,cost:item.cost,date:today(),status:'pending'});
+  save(); renderAll(); showToast('Resgate solicitado! ✅');
+}
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function cc(pct){ return pct>=80?'g':pct>=50?'a':'r'; }
+function pbar(pct,h='7px'){
+  return `<div class="pbar" style="height:${h}"><div class="pfill ${cc(pct)}" style="width:${Math.min(100,pct)}%"></div></div>`;
+}
+function proj(cur,de){ if(!de) return 0; return Math.round((cur/de)*22); }
+
+// ═══════════════════════════════════════════
+// RENDER SHARED
+// ═══════════════════════════════════════════
+function renderDateChip(){
+  document.getElementById('dateChip').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'});
+}
+function isChampion(pid){
+  return S.monthChampion && S.monthChampion.pid === pid;
+}
+function renderPcards(){
+  document.getElementById('pcardsEl').innerHTML=S.players.map((p,i)=>{
+    const lv=getLevel(p.fitcoins||0);
+    const champ=isChampion(p.id);
+    return `<div class="pc${i===S.currentPlayer?' active':''}" onclick="selectPlayer(${i})">
+      <div class="pc-lvl">${champ?'👑':'Nv'+lv.n}</div>
+      <span class="pc-emoji">${p.emoji}</span>
+      <div class="pc-name">${p.name}</div>
+      <div class="pc-fc">${p.fitcoins||0} FC</div>
+    </div>`;
+  }).join('');
+  document.getElementById('btnAdmin').className='btn-admin'+(adminUnlocked?' unlocked':'');
+}
+function renderTQB(){
+  const rev=todayTeamRev(), quota=effectiveQuota(), pct=Math.min(100,Math.round((rev/quota)*100));
+  const rec=recoveryAmt();
+  document.getElementById('tqbEl').innerHTML=`
+    <div class="tqb-row">
+      <div class="tqb-lbl">Cota Diária do Time</div>
+      <div class="tqb-val ${cc(pct)}">${fmtMoney(rev)} <span style="font-size:11px;color:var(--muted2);font-weight:400">/ ${fmtMoney(quota)}</span></div>
+    </div>
+    ${pbar(pct,'8px')}
+    ${rec>0?`<div class="rec-alert">⚠️ <span>Recuperação de ontem incluída — meta hoje <strong>${fmtMoney(quota)}</strong></span></div>`:''}`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER DASHBOARD
+// ═══════════════════════════════════════════
+function renderDashboard(){
+  const mRev=totalTeamMonthRev(), cfg=curCfg(), de=daysElapsed();
+  const pct93=Math.min(100,Math.round((mRev/cfg.monthQuota)*100));
+  const pct128=Math.min(100,Math.round((mRev/cfg.superacao)*100));
+  const ranked=[...S.players].map(p=>{
+    const r=todayReport(p.id);
+    return{p,rev:r?(r.valorVendasExtras||0)+(r.valorMatriculas||0)+(r.valorRenovacoes||0):0,fc:r?r.fcEarned||0:0};
+  }).sort((a,b)=>b.rev-a.rev);
+  const medals=['🥇','🥈','🥉'];
+  const totalFC=S.players.reduce((s,p)=>{const r=todayReport(p.id);return s+(r?r.fcEarned||0:0);},0);
+  const reps=S.players.filter(p=>todayReport(p.id)).length;
+
+  let bonusHtml='';
+  if(S.pendingBonus){
+    const b=S.pendingBonus;
+    bonusHtml=`<div class="bonus-notif">
+      <h3>🎉 Bônus do mês ${monthLabel(b.month)} distribuídos!</h3>
+      ${b.fcLog.map(l=>`<div class="bonus-notif-item"><span>${l.name}</span><span class="bonus-notif-pts">+${l.total} FC</span></div>`).join('')}
+      <button onclick="S.pendingBonus=null;save();renderAll()" style="margin-top:10px;background:var(--green);color:#000;border:none;padding:8px 20px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;width:100%">✓ Entendido</button>
+    </div>`;
+  }
+
+  document.getElementById('tab-dashboard').innerHTML=`
+    ${bonusHtml}
+    <div class="shdr"><div class="sdot"></div><h3>Time Hoje</h3></div>
+    <div class="grid4">
+      <div class="mstat"><div class="mstat-v cv-green" style="font-size:14px">${fmtMoney(todayTeamRev()).replace('R$ ','')}</div><div class="mstat-l">Receita</div></div>
+      <div class="mstat"><div class="mstat-v cv-gold">${totalFC}</div><div class="mstat-l">FC dist.</div></div>
+      <div class="mstat"><div class="mstat-v cv-amber">${reps}/3</div><div class="mstat-l">Reports</div></div>
+      <div class="mstat"><div class="mstat-v cv-white">${Math.round((todayTeamRev()/effectiveQuota())*100)}%</div><div class="mstat-l">Da cota</div></div>
+    </div>
+    <div class="shdr"><div class="sdot"></div><h3>Ranking do Dia</h3></div>
+    ${ranked.map((x,i)=>`<div class="drank">
+      <div class="drank-pos">${medals[i]}</div>
+      <div style="font-size:16px">${x.p.emoji}</div>
+      <div class="drank-name">${x.p.name}</div>
+      <div class="drank-fc">${x.fc} FC</div>
+      <div class="drank-rev">${fmtMoney(x.rev)}</div>
+    </div>`).join('')}
+    <div class="shdr" style="margin-top:16px"><div class="sdot"></div><h3>Metas do Mês</h3><div class="sbadge">Dia ${de}</div></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700">🎯 Cota Time — ${fmtMoney(cfg.monthQuota)}</span>
+        <span style="font-size:13px;font-weight:800;color:${pct93>=80?'var(--green)':pct93>=50?'var(--amber)':'var(--red)'}">${pct93}%</span>
+      </div>
+      ${pbar(pct93,'9px')}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:${pct93>=100?'var(--green)':pct93>=50?'var(--amber)':'var(--red)'}">${fmtMoneyDec(mRev)}</div>
+          <div style="font-size:11px;color:var(--muted2);margin-top:1px">${pct93>=100?'✅ Meta batida!':'Faltam <strong style="color:var(--text)">'+fmtMoney(cfg.monthQuota-mRev)+'</strong>'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--muted2)">Projeção</div>
+          <div style="font-size:14px;font-weight:700;color:var(--muted2)">${fmtMoney(proj(mRev,de))}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700">🚀 Superação — ${fmtMoney(cfg.superacao)}</span>
+        <span style="font-size:13px;font-weight:800;color:var(--amber)">${pct128}%</span>
+      </div>
+      ${pbar(pct128,'9px')}
+      <div style="font-size:11px;color:var(--muted2);margin-top:5px">
+        ${mRev>=cfg.superacao?`<span style="color:var(--green)">✅ Ativada! 5% do excedente dividido entre 6 pessoas.</span>`:`Faltam <strong style="color:var(--text)">${fmtMoney(cfg.superacao-mRev)}</strong>`}
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER PAINEL
+// ═══════════════════════════════════════════
+function renderPainel(){
+  const pid=S.currentPlayer, p=S.players[pid];
+  const r=todayReport(pid), cfg=curCfg(), de=daysElapsed();
+  const lv=getLevel(p.fitcoins||0), lvp=lvProgress(p.fitcoins||0);
+  const mRev=monthRev(pid), indPct=Math.min(100,Math.round((mRev/cfg.indQuota)*100));
+
+  // Today block
+  const todayHtml = r ? `
+    <div class="grid3" style="margin-bottom:8px">
+      <div class="mstat"><div class="mstat-v cv-green">${r.qtdVendasExtras||0}</div><div class="mstat-l">✅ Extras</div></div>
+      <div class="mstat"><div class="mstat-v cv-gold">${r.qtdMatriculas||0}</div><div class="mstat-l">🎓 Matrículas</div></div>
+      <div class="mstat"><div class="mstat-v cv-amber">${r.qtdRenovacoes||0}</div><div class="mstat-l">🔄 Renov.</div></div>
+    </div>
+    <div class="grid4" style="margin-bottom:8px">
+      <div class="mstat"><div class="mstat-v cv-white">${r.qtdUpsells||0}</div><div class="mstat-l">⬆️ Upsells</div></div>
+      <div class="mstat"><div class="mstat-v cv-white">${r.aulaExp||0}</div><div class="mstat-l">🎾 Aulas</div></div>
+      <div class="mstat"><div class="mstat-v cv-amber">${r.qtdCampanhas||0}</div><div class="mstat-l">📣 Camp.</div></div>
+      <div class="mstat"><div class="mstat-v cv-amber">${r.qtdPostagens||0}</div><div class="mstat-l">📸 Posts</div></div>
+    </div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="mstat"><div class="mstat-v cv-green" style="font-size:13px">${fmtMoneyDec((r.valorVendasExtras||0)+(r.valorMatriculas||0)+(r.valorRenovacoes||0)).replace('R$ ','')}</div><div class="mstat-l">💰 Total</div></div>
+      <div class="mstat"><div class="mstat-v cv-gold">${r.fcEarned||0}</div><div class="mstat-l">🪙 FC hoje</div></div>
+      <div class="mstat"><div class="mstat-v" style="font-size:12px;color:var(--muted2)">${r.submittedAt}</div><div class="mstat-l">⏱️ Hora</div></div>
+    </div>
+    <div class="act-section">
+      <div class="act-title">📊 Atividade (visibilidade)</div>
+      <div class="act-row"><span>Abordagens</span><span class="act-val">${r.abordagens||0} / ${cfg.dailyTargets.abordagens}</span></div>
+      <div class="act-row"><span>Leads Quentes</span><span class="act-val">${r.leadsQuentes||0} / ${cfg.dailyTargets.leadsQuentes}</span></div>
+      <div class="act-row"><span>Indicações</span><span class="act-val">${r.indicacoes||0} / ${cfg.dailyTargets.indicacoes}</span></div>
+    </div>` :
+    `<div class="empty"><div class="big">📋</div>Sem report hoje.<br>Vá em <strong>Report</strong>.</div>`;
+
+  // Monthly funnel — verified metrics
+  const verifiedMetrics=[
+    {key:'qtdVendasExtras', label:'Vendas Extras',  mt:cfg.monthTargets.vendas,  e:'✅'},
+    {key:'qtdMatriculas',   label:'Matrículas',     mt:cfg.monthTargets.vendas,  e:'🎓'},
+    {key:'qtdRenovacoes',   label:'Renovações',     mt:cfg.monthTargets.vendas,  e:'🔄'},
+    {key:'qtdUpsells',      label:'Upsells',        mt:10,                       e:'⬆️'},
+    {key:'aulaExp',         label:'Aulas Exp.',     mt:cfg.monthTargets.aulaExp, e:'🎾'},
+    {key:'qtdCampanhas',    label:'Campanhas',      mt:10,                       e:'📣'},
+    {key:'qtdPostagens',    label:'Postagens',      mt:20,                       e:'📸'},
+  ];
+  const activityMetrics=[
+    {key:'abordagens',   label:'Abordagens',   mt:cfg.monthTargets.abordagens},
+    {key:'leadsQuentes', label:'Leads Quentes',mt:cfg.monthTargets.leadsQuentes},
+    {key:'indicacoes',   label:'Indicações',   mt:cfg.monthTargets.indicacoes},
+  ];
+
+  const champBadgeHtml = isChampion(pid) ? `
+    <div style="background:#1C1800;border:2px solid var(--gold);border-radius:var(--rs);padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:28px">👑</span>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:var(--gold)">Campeã de ${monthLabel(S.monthChampion.month)}</div>
+        <div style="font-size:11px;color:var(--muted2);margin-top:2px">Você venceu o ranking do mês passado! +150 FC de head start.</div>
+      </div>
+    </div>` : '';
+
+  document.getElementById('tab-painel').innerHTML=`
+    <div class="shdr"><div class="sdot"></div><h3>${p.emoji} ${p.name}</h3><div class="sbadge">${p.schedule}</div></div>
+    ${champBadgeHtml}
+    <div class="lvl-row">
+      ${lvBadge(p.fitcoins||0)}
+      <div class="lvl-info">
+        <div class="lvl-nr"><span class="lvl-name">${lv.ico} ${lv.name}</span><span class="lvl-xp">${lv.n===5?'MAX 👑':`${lvp.cur}/${lvp.max} FC`}</span></div>
+        ${pbar(lvp.pct,'5px')}
+      </div>
+      <div class="streak-pill">🔥 ${p.streak||0}</div>
+    </div>
+
+    <div class="shdr"><div class="sdot"></div><h3>Hoje</h3></div>
+    ${todayHtml}
+
+    <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Comissão Estimada</h3></div>
+    <div class="grid2">
+      <div class="comm-card"><div class="comm-title">Hoje</div><div class="comm-value">${fmtMoneyDec(calcDailyComm(pid))}</div><div class="comm-sub">${teamHitForDate(today())?'✅ Cota batida — 2%v+1%r':'⏳ Aguardando cota do time'}</div></div>
+      <div class="comm-card"><div class="comm-title">Mês</div><div class="comm-value">${fmtMoneyDec(calcMonthComm(pid))}</div><div class="comm-sub">${(()=>{ const r=monthCommRate(); const cfg2=curCfg(); const tRev=totalTeamMonthRev(); return r===0.025?`✅ 2,5% — time bateu ${fmtMoney(cfg2.monthQuota)}`:`⚠️ 1,5% — time em ${fmtMoney(tRev)} de ${fmtMoney(cfg2.monthQuota)}`; })()}</div></div>
+    </div>
+
+    <div class="card" style="${indPct>=100?'border-color:var(--green);background:#071A0F':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700">🎯 Cota Individual — ${fmtMoney(cfg.indQuota)}</span>
+        <span style="font-size:13px;font-weight:800;color:${cc(indPct)==='g'?'var(--green)':cc(indPct)==='a'?'var(--amber)':'var(--red)'}">${indPct}%</span>
+      </div>
+      ${pbar(indPct,'7px')}
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted2);margin-top:5px">
+        <span>${fmtMoney(mRev)} faturado</span>
+        <span>${indPct>=100?`🎉 Bônus +${fc('cotaIndMes')} FC ativado!`:'Faltam '+fmtMoney(cfg.indQuota-mRev)}</span>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid #2A2A2A;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--muted2)">💰 Bônus em dinheiro</span>
+        <span style="font-size:15px;font-weight:800;color:${indPct>=100?'var(--green)':'var(--gold)'}">
+          ${indPct>=100?'✅ R$500 conquistados!':'R$500 ao bater a meta'}
+        </span>
+      </div>
+    </div>
+
+    <div class="shdr"><div class="sdot"></div><h3>Resultados do Mês</h3></div>
+    ${verifiedMetrics.map(m=>{
+      const cur=monthStat(pid,m.key), pct=Math.min(100,Math.round((cur/m.mt)*100));
+      return `<div class="pmcard">
+        <div class="pmcard-hdr"><div class="pmcard-name">${m.e} ${m.label}</div><div class="pmcard-pct ${cc(pct)}">${pct}%</div></div>
+        ${pbar(pct,'6px')}
+        <div class="pmcard-nums"><span>${cur} de ${m.mt} (meta)</span><span>Proj: ${proj(cur,de)}</span></div>
+      </div>`;
+    }).join('')}
+
+    <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Atividade do Mês <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none">(visibilidade)</span></h3></div>
+    <div class="act-section">
+      ${activityMetrics.map(m=>{
+        const cur=monthStat(pid,m.key);
+        return `<div class="act-row"><span>${m.label}</span><span class="act-val">${cur} / ${m.mt}</span></div>`;
+      }).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--muted);padding:6px 0 14px;font-style:italic">* Comissões são estimativas. Consolidação final pelo gestor.</div>`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER REPORT
+// ═══════════════════════════════════════════
+function getActiveDate(){ return reportDate || today(); }
+
+function renderReport(){
+  const pid=S.currentPlayer, p=S.players[pid];
+  const activeDate = getActiveDate();
+  const r=getReport(pid, activeDate), cfg=curCfg();
+  const v=r||{};
+  const totalVal=((v.valorVendasExtras||0)+(v.valorMatriculas||0)+(v.valorRenovacoes||0));
+
+  // Seletor de datas — dias 1 até hoje no mês atual
+  const todayStr = today();
+  const [y,m] = todayStr.split('-');
+  const daysInMonth = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const maxDay = parseInt(todayStr.split('-')[2]);
+  const dayButtons = Array.from({length: maxDay}, (_,i) => {
+    const d = String(i+1).padStart(2,'0');
+    const dateStr = `${y}-${m}-${d}`;
+    const hasReport = !!getReport(pid, dateStr);
+    const isToday = dateStr === todayStr;
+    const isSelected = dateStr === activeDate;
+    return `<button type="button" onclick="selectReportDate('${dateStr}')" style="
+      flex-shrink:0;width:38px;height:44px;border-radius:var(--rs);border:2px solid ${isSelected?'var(--gold)':hasReport?'#2A4A2A':'#2A2A2A'};
+      background:${isSelected?'#1C1800':hasReport?'#071A0F':'var(--card2)'};
+      color:${isSelected?'var(--gold)':hasReport?'var(--green)':'var(--muted2)'};
+      font-size:13px;font-weight:${isSelected?'800':'600'};cursor:pointer;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
+      <span>${i+1}</span>
+      ${isToday?`<span style="font-size:8px;color:var(--amber);font-weight:700">HOJE</span>`:hasReport?`<span style="font-size:9px">✓</span>`:''}
+    </button>`;
+  }).join('');
+
+  const isToday = activeDate === todayStr;
+  const dateLabelFull = isToday ? 'Hoje' : (() => { const [,, dd] = activeDate.split('-'); return `Dia ${parseInt(dd)}`; })();
+
+  const fcSumHtml = r&&r.fcBreakdown ? `
+    <div class="fc-sum" id="fcSummary">
+      <h3>🪙 FitCoins Ganhos Hoje</h3>
+      ${r.fcBreakdown.map(i=>`<div class="fci"><span>${i.label}</span><span class="fci-pts">+${i.pts}</span></div>`).join('')}
+      <div class="fc-total"><span class="fc-total-l">Total</span><span class="fc-total-v">${r.fcEarned} FC</span></div>
+    </div>` : '<div id="fcSummary"></div>';
+
+  document.getElementById('tab-report').innerHTML=`
+    <div class="shdr"><div class="sdot"></div><h3>📝 Report — ${p.emoji} ${p.name}</h3></div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Selecionar dia</div>
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch">
+        ${dayButtons}
+      </div>
+    </div>
+
+    <div style="background:var(--card);border:1px solid ${isToday?'#242424':'var(--gold-d)'};border-radius:var(--rs);padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:14px;font-weight:800;color:${isToday?'var(--text)':'var(--gold)'}">${dateLabelFull}</span>
+      ${!isToday?`<span style="font-size:11px;color:var(--amber)">⚠️ Preenchimento retroativo</span>`:''}
+    </div>
+
+    ${r?`<div class="already-badge"><strong>${isToday?'✅ Report de hoje':'✅ Report do dia'} enviado às ${r.submittedAt}</strong>Ganhou <strong style="color:var(--gold)">${r.fcEarned} FC</strong> — edite abaixo para corrigir.</div>`:''}
+
+    <form onsubmit="submitReport(event)">
+      <div class="shdr" style="margin-top:0"><div class="sdot"></div><h3>Resultados Verificáveis ✅</h3></div>
+
+      <div class="frow">
+        <div class="fgroup">
+          <div class="flabel">Vendas Extras <span class="hint">+${fc('vendaExtra')} FC/un.</span></div>
+          <input class="finput" type="number" id="f_qtdve" min="0" value="${v.qtdVendasExtras||''}" placeholder="0">
+        </div>
+        <div class="fgroup">
+          <div class="flabel">Matrículas <span class="hint">+${fc('matricula')} FC/un.</span></div>
+          <input class="finput" type="number" id="f_qtdma" min="0" value="${v.qtdMatriculas||''}" placeholder="0">
+        </div>
+      </div>
+      <div class="frow3">
+        <div class="fgroup">
+          <div class="flabel">Renovações <span class="hint">+${fc('renovacao')} FC</span></div>
+          <input class="finput" type="number" id="f_qtdr" min="0" value="${v.qtdRenovacoes||''}" placeholder="0">
+        </div>
+        <div class="fgroup">
+          <div class="flabel">Upsells <span class="hint">+${fc('upsell')} FC</span></div>
+          <input class="finput" type="number" id="f_qtdu" min="0" value="${v.qtdUpsells||''}" placeholder="0">
+        </div>
+        <div class="fgroup">
+          <div class="flabel">Aulas Exp. <span class="hint">+${fc('aulaExp')} FC</span></div>
+          <input class="finput" type="number" id="f_aula" min="0" value="${v.aulaExp||''}" placeholder="0">
+        </div>
+      </div>
+
+      <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Receita (R$)</h3></div>
+      <div class="frow3">
+        <div class="fgroup">
+          <div class="flabel">Valor Extras</div>
+          <input class="finput money" type="number" id="f_valve" min="0" step="0.01" value="${v.valorVendasExtras||''}" placeholder="0,00" oninput="updateTotal()">
+        </div>
+        <div class="fgroup">
+          <div class="flabel">Valor Matrículas</div>
+          <input class="finput money" type="number" id="f_valma" min="0" step="0.01" value="${v.valorMatriculas||''}" placeholder="0,00" oninput="updateTotal()">
+        </div>
+        <div class="fgroup">
+          <div class="flabel">Valor Renovações</div>
+          <input class="finput money" type="number" id="f_valr" min="0" step="0.01" value="${v.valorRenovacoes||''}" placeholder="0,00" oninput="updateTotal()">
+        </div>
+      </div>
+      <div class="fgroup">
+        <div class="flabel">Total do Dia</div>
+        <input class="finput total-display" id="f_total" readonly value="${totalVal>0?fmtMoneyDec(totalVal):'—'}">
+      </div>
+
+      <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Iniciativas <span style="font-size:10px;color:var(--muted2);font-weight:400;text-transform:none;letter-spacing:0">· geram FC</span></h3></div>
+      <div class="frow">
+        <div class="fgroup">
+          <div class="flabel">Campanhas <span class="hint">+${fc('campanha')} FC/un.</span></div>
+          <input class="finput" type="number" id="f_camp" min="0" value="${v.qtdCampanhas||''}" placeholder="0">
+        </div>
+        <div class="fgroup">
+          <div class="flabel">Postagens <span class="hint">+${fc('postagem')} FC/un.</span></div>
+          <input class="finput" type="number" id="f_post" min="0" value="${v.qtdPostagens||''}" placeholder="0">
+        </div>
+      </div>
+
+      <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Atividade <span style="font-size:10px;color:var(--muted2);font-weight:400;text-transform:none;letter-spacing:0">· +${fc('completudeAtiv')} FC se preencher tudo</span></h3></div>
+      <div class="frow3">
+        <div class="fgroup">
+          <div class="flabel">Abordagens</div>
+          <input class="finput" type="number" id="f_abord" min="0" value="${v.abordagens||''}" placeholder="0" style="color:var(--muted2)">
+        </div>
+        <div class="fgroup">
+          <div class="flabel">Leads</div>
+          <input class="finput" type="number" id="f_leads" min="0" value="${v.leadsQuentes||''}" placeholder="0" style="color:var(--muted2)">
+        </div>
+        <div class="fgroup">
+          <div class="flabel">Indicações</div>
+          <input class="finput" type="number" id="f_indic" min="0" value="${v.indicacoes||''}" placeholder="0" style="color:var(--muted2)">
+        </div>
+      </div>
+
+      <div class="fgroup">
+        <div class="flabel">Observações</div>
+        <textarea class="finput" id="f_obs" rows="2" style="resize:none" placeholder="Algo a destacar...">${v.obs||''}</textarea>
+      </div>
+      <button type="submit" class="btn-submit">🚀 Salvar e Calcular FitCoins</button>
+    </form>
+    ${fcSumHtml}`;
+}
+
+function updateTotal(){
+  const ve=parseFloat(document.getElementById('f_valve')?.value)||0;
+  const ma=parseFloat(document.getElementById('f_valma')?.value)||0;
+  const r =parseFloat(document.getElementById('f_valr')?.value)||0;
+  const el=document.getElementById('f_total');
+  if(el) el.value=(ve+ma+r)>0?fmtMoneyDec(ve+ma+r):'—';
+}
+
+// ═══════════════════════════════════════════
+// RENDER LOJA
+// ═══════════════════════════════════════════
+function renderLoja(){
+  const pid=S.currentPlayer, p=S.players[pid], fc_=p.fitcoins||0;
+  const store=getStore();
+  const pendIds=S.resgates.filter(r=>r.pid===pid&&r.status==='pending').map(r=>r.itemId);
+  const tiers=[
+    {key:'bronze',label:'Bronze',range:'100–299 FC',ico:'🥉',cls:'tb-bronze'},
+    {key:'prata', label:'Prata', range:'300–599 FC',ico:'🥈',cls:'tb-prata'},
+    {key:'ouro',  label:'Ouro',  range:'600–999 FC',ico:'🥇',cls:'tb-ouro'},
+    {key:'elite', label:'Elite', range:'1.000+ FC', ico:'👑',cls:'tb-elite'},
+  ];
+  const storeHtml=tiers.map(tier=>{
+    const items=store.filter(i=>i.tier===tier.key);
+    if(!items.length) return '';
+    return `<div style="margin-bottom:20px">
+      <div class="tier-badge ${tier.cls}">${tier.ico} ${tier.label} · ${tier.range}</div>
+      ${items.map(item=>{
+        const can=fc_>=item.cost, pend=pendIds.includes(item.id);
+        return `<div class="sitem ${pend?'pend':can?'can':'cant'}">
+          <div class="si-ico">${item.ico}</div>
+          <div class="si-info">
+            <div class="si-name">${item.name}</div>
+            <div class="si-partner">📍 ${item.partner}</div>
+            <div class="si-desc">${item.desc}</div>
+          </div>
+          <div class="si-right">
+            <div class="si-cost">${item.cost}</div>
+            <div class="si-cost-l">FitCoins</div>
+            <button class="btn-resgate${pend?' pend':''}" onclick="resgate('${item.id}')" ${(!can||pend)?'disabled':''}>
+              ${pend?'⏳ Pendente':can?'Resgatar':'🔒'}
+            </button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+  const myRes=S.resgates.filter(r=>r.pid===pid).slice().reverse();
+  document.getElementById('tab-loja').innerHTML=`
+    <div class="fc-bal">
+      <div><div class="fcb-l">Seu saldo</div><div class="fcb-v">${fc_} <small>FitCoins</small></div></div>
+      ${lvBadge(fc_)}
+    </div>
+    <div class="shdr"><div class="sdot"></div><h3>Catálogo</h3><div class="sbadge">Parceiros</div></div>
+    ${storeHtml}
+    <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Meus Resgates</h3></div>
+    ${myRes.length?myRes.map(r=>`<div class="res-item">
+      <div class="res-name">${r.itemName}</div>
+      <div style="text-align:right"><div class="res-date">${fmtDate(r.date)}</div><div class="${r.status==='pending'?'badge-pend':'badge-ok'}">${r.status==='pending'?'⏳ Pendente':'✅ Aprovado'}</div></div>
+      <div style="font-size:13px;font-weight:700;color:var(--red)">−${r.cost} FC</div>
+    </div>`).join(''):
+    `<div class="empty"><div class="big">🛍️</div>Nenhum resgate ainda.</div>`}`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER RANKING
+// ═══════════════════════════════════════════
+function renderRanking(){
+  const sorted=[...S.players].sort((a,b)=>(b.fitcoins||0)-(a.fitcoins||0));
+  const medals=['🥇','🥈','🥉'], rcls=['r1','r2','r3'];
+  const cfg=curCfg(), mRev=totalTeamMonthRev();
+  const bonusPP=mRev>=cfg.superacao?Math.max(0,mRev-cfg.monthQuota)*0.05/6:0;
+  const archives=Object.keys(S.monthArchive).sort().reverse().slice(0,6);
+
+  document.getElementById('tab-ranking').innerHTML=`
+    <div class="shdr"><div class="sdot"></div><h3>Ranking — FitCoins</h3></div>
+    ${sorted.map((p,i)=>{
+      const mR=monthRev(p.id), iPct=Math.min(100,Math.round((mR/cfg.indQuota)*100));
+      return `<div class="rcard ${rcls[i]||''}">
+        <div class="rmedal">${medals[i]||`#${i+1}`}</div>
+        <div class="ravatar">${p.emoji}</div>
+        <div class="rinfo">
+          <div class="rname">${p.name} ${isChampion(p.id)?'<span style="font-size:11px;color:var(--gold);font-weight:700;margin-left:4px">👑 Campeã</span>':''}</div>
+          <div class="rsub">${lvBadge(p.fitcoins||0)} <span class="streak-pill" style="margin-left:6px">🔥 ${p.streak||0}</span></div>
+          <div style="margin-top:6px">${pbar(iPct,'4px')}</div>
+          <div style="font-size:10px;color:var(--muted2);margin-top:3px">Cota individual: ${iPct}% · ${fmtMoney(mR)}</div>
+        </div>
+        <div class="rfc">${p.fitcoins||0}<small>FitCoins</small></div>
+      </div>`;
+    }).join('')}
+    <div class="shdr" style="margin-top:16px"><div class="sdot"></div><h3>Resumo do Mês</h3></div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700">🎯 Cota Time — ${fmtMoney(cfg.monthQuota)}</span>
+        <span style="font-size:13px;font-weight:800">${Math.min(100,Math.round((mRev/cfg.monthQuota)*100))}%</span>
+      </div>
+      ${pbar(Math.min(100,Math.round((mRev/cfg.monthQuota)*100)),'8px')}
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted2);margin-top:5px">
+        <span>${fmtMoney(mRev)} faturado</span>
+        <span>${mRev>=cfg.superacao?`🚀 Bônus ${fmtMoney(bonusPP)}/pessoa`:`Faltam ${fmtMoney(cfg.superacao-mRev)} p/ superação`}</span>
+      </div>
+    </div>
+    ${archives.length?`<div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Histórico</h3></div>
+    ${archives.map(mk=>{
+      const a=S.monthArchive[mk], cfg2=getCfg(mk);
+      const pct=Math.min(100,Math.round((a.revenue/cfg2.monthQuota)*100));
+      return `<div class="arch-card">
+        <div class="arch-month">📅 ${monthLabel(mk)}</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted2);margin-bottom:6px">
+          <span>Receita: <strong style="color:var(--text)">${fmtMoney(a.revenue)}</strong></span>
+          <span style="color:${pct>=100?'var(--green)':'var(--amber)'}">${pct}%</span>
+        </div>
+        ${pbar(pct,'5px')}
+        ${a.playerRanking&&a.playerRanking.length?`<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">
+          ${[...a.playerRanking].sort((x,y)=>y.fitcoins-x.fitcoins).map((r,i)=>`<span style="font-size:11px;color:var(--muted2)">${['🥇','🥈','🥉'][i]||''} ${r.emoji} ${r.name} <strong style="color:var(--gold)">${r.fitcoins} FC</strong></span>`).join('')}
+        </div>`:''}
+      </div>`;
+    }).join('')}`:''}`;
+}
+
+// ═══════════════════════════════════════════
+// ADMIN
+// ═══════════════════════════════════════════
+const ADMIN_TABS=[
+  {id:'overview',  label:'👁️ Visão Geral'},
+  {id:'mes',       label:'📅 Mês'},
+  {id:'fc',        label:'🪙 FitCoins'},
+  {id:'loja',      label:'🛍️ Prêmios'},
+  {id:'resgates',  label:'✅ Resgates'},
+  {id:'historico', label:'📊 Histórico'},
+  {id:'config',    label:'⚙️ Config'},
+];
+
+function openAdmin(){
+  if(!adminUnlocked){
+    document.getElementById('pwPromptText').textContent = S.adminPassword ? 'Digite a senha de administrador' : 'Crie uma senha de administrador';
+    document._pwMode = S.adminPassword ? 'check' : 'set';
+    document.getElementById('pwModal').classList.add('show');
+    document.getElementById('pwInput').value='';
+    document.getElementById('pwError').classList.remove('show');
+    setTimeout(()=>document.getElementById('pwInput').focus(),200);
+  } else {
+    showAdminPanel();
+  }
+}
+function pwSubmit(){
+  const val=document.getElementById('pwInput').value.trim();
+  if(!val){ document.getElementById('pwError').textContent='Digite uma senha'; document.getElementById('pwError').classList.add('show'); return; }
+  if(document._pwMode==='set'){
+    S.adminPassword=val; save(); closePwModal(); adminUnlocked=true; showAdminPanel();
+  } else {
+    if(val===S.adminPassword){ closePwModal(); adminUnlocked=true; showAdminPanel(); }
+    else { document.getElementById('pwError').textContent='Senha incorreta'; document.getElementById('pwError').classList.add('show'); document.getElementById('pwInput').value=''; }
+  }
+}
+function closePwModal(){ document.getElementById('pwModal').classList.remove('show'); }
+function showAdminPanel(){ renderAdminTabs(); renderAdminContent(); document.getElementById('adminOv').classList.add('show'); document.getElementById('btnAdmin').className='btn-admin unlocked'; }
+function closeAdmin(){ document.getElementById('adminOv').classList.remove('show'); }
+function renderAdminTabs(){
+  document.getElementById('adminTabsEl').innerHTML=ADMIN_TABS.map(t=>
+    `<div class="atab${currentAdminTab===t.id?' active':''}" onclick="switchAdminTab('${t.id}')">${t.label}</div>`
+  ).join('');
+}
+function switchAdminTab(id){ currentAdminTab=id; renderAdminTabs(); renderAdminContent(); }
+
+function renderAdminContent(){
+  const mk=monthKey(), cfg=getCfg(mk);
+  const el=document.getElementById('adminContent');
+
+  if(currentAdminTab==='overview'){
+    const de=daysElapsed();
+    el.innerHTML=`
+      <div class="shdr"><div class="sdot"></div><h3>Visão Geral — ${monthLabel(mk)}</h3><div class="sbadge">Dia ${de}</div></div>
+      ${S.players.map(p=>{
+        const pid=p.id;
+        const mRev=monthRev(pid), indPct=Math.min(100,Math.round((mRev/cfg.indQuota)*100));
+        const r=todayReport(pid);
+        const champ=isChampion(pid);
+        const lv=getLevel(p.fitcoins||0), lvp=lvProgress(p.fitcoins||0);
+        const ve=monthStat(pid,'qtdVendasExtras'), ma=monthStat(pid,'qtdMatriculas');
+        const re=monthStat(pid,'qtdRenovacoes'), up=monthStat(pid,'qtdUpsells');
+        const ae=monthStat(pid,'aulaExp'), ca=monthStat(pid,'qtdCampanhas'), po=monthStat(pid,'qtdPostagens');
+        const comm=calcMonthComm(pid);
+        return `<div class="card" style="margin-bottom:14px;${champ?'border-color:var(--gold)':''}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #242424">
+            <span style="font-size:28px">${p.emoji}</span>
+            <div style="flex:1">
+              <div style="font-size:15px;font-weight:800">${p.name} ${champ?'<span style="font-size:12px;color:var(--gold)">👑 Campeã</span>':''}</div>
+              <div style="margin-top:4px">${lvBadge(p.fitcoins||0)}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:22px;font-weight:800;color:var(--gold)">${p.fitcoins||0}</div>
+              <div style="font-size:10px;color:var(--muted2)">FitCoins</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:700">🎯 Cota Individual</span>
+              <span style="font-size:12px;font-weight:800;color:${cc(indPct)==='g'?'var(--green)':cc(indPct)==='a'?'var(--amber)':'var(--red)'}">${indPct}% · ${fmtMoneyDec(mRev)}</span>
+            </div>
+            ${pbar(indPct,'6px')}
+            <div style="font-size:11px;color:var(--muted2);margin-top:3px">${indPct>=100?'✅ Meta batida! +R$500':'Faltam '+fmtMoney(cfg.indQuota-mRev)} · Proj: ${fmtMoney(proj(mRev,de))}</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
+            <div class="mstat"><div class="mstat-v cv-green" style="font-size:16px">${ma}</div><div class="mstat-l">🎓 Matrículas</div></div>
+            <div class="mstat"><div class="mstat-v cv-amber" style="font-size:16px">${re}</div><div class="mstat-l">🔄 Renov.</div></div>
+            <div class="mstat"><div class="mstat-v cv-gold" style="font-size:16px">${up}</div><div class="mstat-l">⬆️ Upsells</div></div>
+            <div class="mstat"><div class="mstat-v cv-white" style="font-size:16px">${ae}</div><div class="mstat-l">🎾 Aulas</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px">
+            <div class="mstat"><div class="mstat-v" style="font-size:15px;color:var(--text)">${ve}</div><div class="mstat-l">✅ Extras</div></div>
+            <div class="mstat"><div class="mstat-v cv-amber" style="font-size:15px">${ca}</div><div class="mstat-l">📣 Camp.</div></div>
+            <div class="mstat"><div class="mstat-v cv-amber" style="font-size:15px">${po}</div><div class="mstat-l">📸 Posts</div></div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--card2);border-radius:var(--rs)">
+            <span style="font-size:12px;color:var(--muted2)">💰 Comissão estimada do mês</span>
+            <span style="font-size:15px;font-weight:800;color:var(--green)">${fmtMoneyDec(comm)}</span>
+          </div>
+
+          <div style="margin-top:8px;padding:8px 10px;background:${r?'#052E16':'#1A0A00'};border:1px solid ${r?'#166534':'#3A1200'};border-radius:var(--rs);font-size:12px;color:${r?'var(--green)':'var(--amber)'}">
+            ${r?`✅ Report de hoje enviado às ${r.submittedAt} · <strong style="color:var(--gold)">${r.fcEarned||0} FC</strong>`:'⚠️ Sem report hoje'}
+          </div>
+        </div>`;
+      }).join('')}`;
+
+  } else if(currentAdminTab==='mes'){
+    el.innerHTML=`
+      <div class="shdr"><div class="sdot"></div><h3>Configurar ${monthLabel(mk)}</h3></div>
+      <div class="card">
+        <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Cotas em R$</p>
+        <div class="af-row">
+          <div><label class="af-label">Cota Diária Time</label><input class="af-input" type="number" id="ac_daily" value="${cfg.dailyQuota}"></div>
+          <div><label class="af-label">Cota Individual</label><input class="af-input" type="number" id="ac_ind" value="${cfg.indQuota}"></div>
+        </div>
+        <div class="af-row">
+          <div><label class="af-label">Cota Time Mês</label><input class="af-input" type="number" id="ac_month" value="${cfg.monthQuota}"></div>
+          <div><label class="af-label">Meta Superação</label><input class="af-input" type="number" id="ac_sup" value="${cfg.superacao}"></div>
+        </div>
+      </div>
+      <div class="card">
+        <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Metas diárias (atividade)</p>
+        <div class="af-row">
+          <div><label class="af-label">Abordagens/dia</label><input class="af-input" type="number" id="ac_tab" value="${cfg.dailyTargets.abordagens}"></div>
+          <div><label class="af-label">Leads/dia</label><input class="af-input" type="number" id="ac_tlq" value="${cfg.dailyTargets.leadsQuentes}"></div>
+        </div>
+        <div class="af-row">
+          <div><label class="af-label">Indicações/dia</label><input class="af-input" type="number" id="ac_ti" value="${cfg.dailyTargets.indicacoes}"></div>
+          <div><label class="af-label">Aulas Exp./dia</label><input class="af-input" type="number" id="ac_ta" value="${cfg.dailyTargets.aulaExp}"></div>
+        </div>
+      </div>
+      <div class="card">
+        <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Metas mensais</p>
+        <div class="af-row">
+          <div><label class="af-label">Abordagens/mês</label><input class="af-input" type="number" id="ac_mab" value="${cfg.monthTargets.abordagens}"></div>
+          <div><label class="af-label">Leads/mês</label><input class="af-input" type="number" id="ac_mlq" value="${cfg.monthTargets.leadsQuentes}"></div>
+        </div>
+        <div class="af-row">
+          <div><label class="af-label">Indicações/mês</label><input class="af-input" type="number" id="ac_mi" value="${cfg.monthTargets.indicacoes}"></div>
+          <div><label class="af-label">Aulas Exp./mês</label><input class="af-input" type="number" id="ac_ma" value="${cfg.monthTargets.aulaExp}"></div>
+        </div>
+        <div class="af-group"><label class="af-label">Vendas/mês</label><input class="af-input" type="number" id="ac_mv" value="${cfg.monthTargets.vendas}"></div>
+      </div>
+      <button class="btn-save" onclick="saveMesConfig()">💾 Salvar</button>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid #2A2A2A">
+        <p style="font-size:12px;color:var(--muted2);margin-bottom:10px">Quando o mês terminar, feche-o aqui. Isso arquiva os resultados, distribui bônus de meta e <strong style="color:var(--gold)">zera os FitCoins de todas as jogadoras</strong>.</p>
+        ${S.lastAutoClose === mk ? `<div style="background:#052E16;border:1px solid #166534;border-radius:var(--rs);padding:10px 14px;font-size:12px;color:var(--green)">✅ ${monthLabel(mk)} já foi fechado.</div>` :
+        `<button onclick="manualMonthClose()" style="width:100%;padding:14px;background:#1C1800;color:var(--gold);border:2px solid var(--gold-d);border-radius:var(--r);font-size:15px;font-weight:800;cursor:pointer">🔄 Fechar ${monthLabel(mk)} e Resetar FitCoins</button>`}
+      </div>`;
+
+  } else if(currentAdminTab==='fc'){
+    el.innerHTML=`
+      <div class="shdr"><div class="sdot"></div><h3>Regras de FitCoins</h3></div>
+      <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Edite o valor de FC para cada conquista. Alterações valem a partir do próximo report.</p>
+      <div class="card">
+        ${FC_RULES_META.map(rule=>`
+          <div class="fc-rule-row">
+            <div style="flex:1">
+              <div class="fc-rule-label">${rule.label}</div>
+              <div class="fc-rule-sub">${rule.sub}</div>
+            </div>
+            <input class="fc-rule-input" type="number" id="fcr_${rule.key}" value="${fc(rule.key)}" min="0">
+            <div class="fc-rule-unit">${rule.unit}</div>
+          </div>`).join('')}
+      </div>
+      <button class="btn-save" onclick="saveFCRules()">💾 Salvar Regras de FC</button>
+      <button class="btn-danger" style="width:100%;margin-top:8px" onclick="resetFCRules()">↩ Restaurar padrões</button>`;
+
+  } else if(currentAdminTab==='loja'){
+    const store=getStore();
+    el.innerHTML=`
+      <div class="shdr"><div class="sdot"></div><h3>Gerenciar Prêmios</h3></div>
+      ${store.map((item,idx)=>`
+        <div class="store-edit-item">
+          <div class="sei-header">
+            <div>${item.ico} <span class="sei-name">${item.name}</span> <span style="font-size:11px;color:var(--muted2)">· ${item.tier}</span></div>
+            <div class="sei-actions">
+              <button class="btn-sm-gold" onclick="editStoreItem(${idx})">✏️</button>
+              <button class="btn-sm-red"  onclick="deleteStoreItem(${idx})">🗑️</button>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--muted2)">${item.partner} · <span style="color:var(--gold)">${item.cost} FC</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">${item.desc}</div>
+        </div>`).join('')}
+      <button class="btn-save" style="margin-top:8px" onclick="addStoreItem()">+ Adicionar Prêmio</button>`;
+
+  } else if(currentAdminTab==='resgates'){
+    const pending=S.resgates.filter(r=>r.status==='pending');
+    el.innerHTML=`
+      <div class="shdr"><div class="sdot"></div><h3>Pendentes (${pending.length})</h3></div>
+      ${pending.length?pending.map(r=>{
+        const p=S.players[r.pid], gi=S.resgates.findIndex(x=>x===r);
+        return `<div style="background:var(--card2);border:1px solid var(--amber);border-radius:var(--rs);padding:12px;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px">${p?.emoji} ${p?.name||'?'} — ${r.itemName}</div>
+          <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">${fmtDate(r.date)} · ${r.cost} FC</div>
+          <div style="display:flex;gap:8px">
+            <button onclick="approveResgate(${gi})" style="flex:1;background:var(--green);color:#000;border:none;padding:9px;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer">✅ Aprovar</button>
+            <button onclick="rejectResgate(${gi})"  style="flex:1;background:var(--red);color:#fff;border:none;padding:9px;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer">✕ Rejeitar</button>
+          </div>
+        </div>`;
+      }).join(''):
+      `<div class="empty"><div class="big">✅</div>Nenhum pendente.</div>`}
+      <div class="shdr" style="margin-top:8px"><div class="sdot"></div><h3>Histórico</h3></div>
+      ${S.resgates.filter(r=>r.status!=='pending').slice().reverse().slice(0,20).map(r=>{
+        const p=S.players[r.pid];
+        return `<div class="res-item"><div class="res-name">${p?.emoji} ${p?.name||'?'} — ${r.itemName}</div><div><div class="res-date">${fmtDate(r.date)}</div><div class="${r.status==='approved'?'badge-ok':'badge-pend'}">${r.status==='approved'?'✅ Aprovado':'✕ Rejeitado'}</div></div></div>`;
+      }).join('')}`;
+
+  } else if(currentAdminTab==='historico'){
+    const months=Object.keys(S.monthArchive).sort().reverse();
+    el.innerHTML=`
+      <div class="shdr"><div class="sdot"></div><h3>Histórico Mensal</h3></div>
+      ${months.length?months.map(mk=>{
+        const a=S.monthArchive[mk], cfg2=getCfg(mk);
+        const pct=Math.min(100,Math.round((a.revenue/cfg2.monthQuota)*100));
+        return `<div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:15px;font-weight:800;color:var(--gold)">${monthLabel(mk)}</span>
+            <span style="font-size:13px;font-weight:700;color:${pct>=100?'var(--green)':'var(--amber)'}">${pct}%</span>
+          </div>
+          ${pbar(pct,'6px')}
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted2);margin-top:8px">
+            <span>Receita: <strong style="color:var(--text)">${fmtMoney(a.revenue)}</strong></span>
+            <span>Meta: <strong style="color:var(--text)">${fmtMoney(cfg2.monthQuota)}</strong></span>
+          </div>
+          ${a.playerRanking&&a.playerRanking.length?`<div style="margin-top:10px;padding-top:10px;border-top:1px solid #242424">
+            <div style="font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Ranking FC do mês</div>
+            ${[...a.playerRanking].sort((x,y)=>y.fitcoins-x.fitcoins).map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12px">
+              <span>${['🥇','🥈','🥉'][i]||`#${i+1}`}</span>
+              <span>${r.emoji} ${r.name}</span>
+              <span style="margin-left:auto;color:var(--gold);font-weight:700">${r.fitcoins} FC</span>
+            </div>`).join('')}
+          </div>`:''}
+          ${a.fcLog&&a.fcLog.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid #242424">
+            <div style="font-size:10px;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Bônus distribuídos</div>
+            ${a.fcLog.map(l=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span>${l.name}</span><span style="color:var(--green);font-weight:700">+${l.total} FC</span></div>`).join('')}
+          </div>`:''}
+        </div>`;
+      }).join(''):
+      `<div class="empty"><div class="big">📊</div>Nenhum mês fechado ainda.<br>Use o botão na aba <strong>📅 Mês</strong> para fechar quando o mês terminar.</div>`}`;
+
+  } else if(currentAdminTab==='config'){
+    el.innerHTML=`
+      <div class="shdr"><div class="sdot"></div><h3>Vendedoras</h3></div>
+      <div class="card">
+        <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Nome, emoji e PIN de cada vendedora.</p>
+        ${S.players.map((p,i)=>{
+          const pinSet = !!getPlayerPin(i);
+          return `<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #242424">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+              <input class="af-input" type="text" id="cfg_emoji_${i}" value="${p.emoji}" style="width:48px;text-align:center;flex:none;font-size:20px">
+              <input class="af-input" type="text" id="cfg_name_${i}"  value="${p.name}"  placeholder="Nome" style="flex:1">
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:11px;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.5px">PIN atual:</span>
+              <span style="font-size:13px;font-weight:700;color:${pinSet?'var(--green)':'var(--amber)'}">
+                ${pinSet ? '🔒 Configurado' : '⚠️ Não configurado'}
+              </span>
+              ${pinSet ? `<button onclick="clearPin(${i})" style="margin-left:auto;background:#2A0A0A;color:var(--red);border:1px solid #3A1212;padding:5px 10px;border-radius:20px;font-size:11px;cursor:pointer">Remover PIN</button>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:11px;color:var(--muted2);white-space:nowrap">${pinSet?'Novo PIN:':'Definir PIN:'}</label>
+              <input class="af-input" type="tel" id="cfg_pin_${i}" placeholder="••••" maxlength="4"
+                style="font-size:24px;text-align:center;letter-spacing:10px;flex:1"
+                oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
+            </div>
+            <p style="font-size:11px;color:var(--muted);margin-top:5px">${pinSet?'Deixe vazio para manter o PIN atual.':'Digite 4 dígitos para ativar o PIN.'}</p>
+          </div>`;
+        }).join('')}
+        <button class="btn-save" onclick="savePlayers()">💾 Salvar</button>
+      </div>
+      <div class="shdr"><div class="sdot"></div><h3>Segurança</h3></div>
+      <div class="card">
+        <div class="af-group"><label class="af-label">Nova Senha Admin</label><input class="af-input" type="password" id="cfg_pw1" placeholder="Nova senha"></div>
+        <div class="af-group"><label class="af-label">Confirmar</label><input class="af-input" type="password" id="cfg_pw2" placeholder="Repita"></div>
+        <button class="btn-save" onclick="changePassword()">🔐 Alterar Senha</button>
+      </div>
+      <div class="card" style="border-color:#3A1212;margin-top:8px">
+        <p style="font-size:12px;color:var(--muted2);margin-bottom:12px">Zona de risco</p>
+        <button class="btn-danger" style="width:100%;margin-bottom:8px" onclick="resetDay()">🔄 Resetar Reports de Hoje</button>
+        <button class="btn-danger" style="width:100%;margin-bottom:8px" onclick="resetMonth()">🗓️ Limpar Mês Atual</button>
+        <button class="btn-danger" style="width:100%;margin-bottom:8px" onclick="resetAll()">🔄 Zerar Dados (mantém PINs e configs)</button>
+        <button class="btn-danger" style="width:100%;background:#3A0A0A;color:#ff8888" onclick="resetNuclear()">💀 Apagar ABSOLUTAMENTE TUDO</button>
+      </div>`;
+  }
+}
+
+// ADMIN SAVE ACTIONS
+function saveMesConfig(){
+  const mk=monthKey();
+  if(!S.monthConfig[mk]) S.monthConfig[mk]={};
+  const c=S.monthConfig[mk];
+  c.dailyQuota=parseFloat(document.getElementById('ac_daily').value)||DEF.dailyQuota;
+  c.indQuota  =parseFloat(document.getElementById('ac_ind').value)  ||DEF.indQuota;
+  c.monthQuota=parseFloat(document.getElementById('ac_month').value)||DEF.monthQuota;
+  c.superacao =parseFloat(document.getElementById('ac_sup').value)  ||DEF.superacao;
+  c.dailyTargets={ abordagens:parseInt(document.getElementById('ac_tab').value)||DEF.dailyTargets.abordagens, leadsQuentes:parseInt(document.getElementById('ac_tlq').value)||DEF.dailyTargets.leadsQuentes, indicacoes:parseInt(document.getElementById('ac_ti').value)||DEF.dailyTargets.indicacoes, aulaExp:parseInt(document.getElementById('ac_ta').value)||DEF.dailyTargets.aulaExp };
+  c.monthTargets={ abordagens:parseInt(document.getElementById('ac_mab').value)||DEF.monthTargets.abordagens, leadsQuentes:parseInt(document.getElementById('ac_mlq').value)||DEF.monthTargets.leadsQuentes, indicacoes:parseInt(document.getElementById('ac_mi').value)||DEF.monthTargets.indicacoes, aulaExp:parseInt(document.getElementById('ac_ma').value)||DEF.monthTargets.aulaExp, vendas:parseInt(document.getElementById('ac_mv').value)||DEF.monthTargets.vendas };
+  save(); showToast('✅ Configurações salvas!'); renderAll();
+}
+
+function saveFCRules(){
+  if(!S.fcRules) S.fcRules={};
+  FC_RULES_META.forEach(rule=>{
+    const el=document.getElementById(`fcr_${rule.key}`);
+    if(el) S.fcRules[rule.key]=parseInt(el.value)||0;
+  });
+  save(); showToast('✅ Regras de FC salvas!');
+}
+function resetFCRules(){
+  if(!confirm('Restaurar todos os valores padrão de FC?')) return;
+  S.fcRules={}; save();
+  FC_RULES_META.forEach(rule=>{ const el=document.getElementById(`fcr_${rule.key}`); if(el) el.value=DEF_FC[rule.key]; });
+  showToast('Valores padrão restaurados.');
+}
+
+function editStoreItem(idx){
+  const store=getStore(), item=store[idx];
+  const el=document.getElementById('adminContent');
+  el.innerHTML=`
+    <div class="shdr"><div class="sdot"></div><h3>✏️ Editar Prêmio</h3></div>
+    <div class="card">
+      <div class="af-row">
+        <div>
+          <label class="af-label">Emoji</label>
+          <input class="af-input" type="text" id="ei_ico" value="${item.ico}" style="font-size:28px;text-align:center;padding:8px">
+        </div>
+        <div style="flex:2">
+          <label class="af-label">Tier</label>
+          <select class="af-input" id="ei_tier" style="appearance:auto">
+            <option value="bronze" ${item.tier==='bronze'?'selected':''}>🥉 Bronze (100–299 FC)</option>
+            <option value="prata"  ${item.tier==='prata' ?'selected':''}>🥈 Prata  (300–599 FC)</option>
+            <option value="ouro"   ${item.tier==='ouro'  ?'selected':''}>🥇 Ouro   (600–999 FC)</option>
+            <option value="elite"  ${item.tier==='elite' ?'selected':''}>👑 Elite  (1000+ FC)</option>
+          </select>
+        </div>
+      </div>
+      <div class="af-group"><label class="af-label">Nome do Prêmio</label><input class="af-input" type="text" id="ei_name" value="${item.name}" placeholder="Nome"></div>
+      <div class="af-group"><label class="af-label">Parceiro</label><input class="af-input" type="text" id="ei_partner" value="${item.partner}" placeholder="Ex: Point 43, Restaurante X..."></div>
+      <div class="af-group"><label class="af-label">Descrição</label><textarea class="af-input" id="ei_desc" rows="2" style="resize:none">${item.desc}</textarea></div>
+      <div class="af-group"><label class="af-label">Custo em FitCoins</label><input class="af-input" type="number" id="ei_cost" value="${item.cost}" min="1" style="font-size:18px;font-weight:700;color:var(--gold)"></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn-save" style="flex:1" onclick="saveStoreItem(${idx})">💾 Salvar Prêmio</button>
+        <button class="btn-danger" style="flex-shrink:0" onclick="switchAdminTab('loja')">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+function saveStoreItem(idx){
+  const ico     = document.getElementById('ei_ico').value.trim()||'🎁';
+  const tier    = document.getElementById('ei_tier').value;
+  const name    = document.getElementById('ei_name').value.trim();
+  const partner = document.getElementById('ei_partner').value.trim();
+  const desc    = document.getElementById('ei_desc').value.trim();
+  const cost    = parseInt(document.getElementById('ei_cost').value)||0;
+  if(!name){ showToast('Nome obrigatório',true); return; }
+  if(!S.customStore) S.customStore=JSON.parse(JSON.stringify(DEFAULT_STORE));
+  S.customStore[idx]={...S.customStore[idx]||DEFAULT_STORE[idx],ico,tier,name,partner,desc,cost};
+  save(); showToast('Prêmio atualizado!'); switchAdminTab('loja');
+}
+
+function deleteStoreItem(idx){
+  if(!confirm('Remover este prêmio?')) return;
+  if(!S.customStore) S.customStore=JSON.parse(JSON.stringify(DEFAULT_STORE));
+  S.customStore.splice(idx,1); save(); showToast('Removido.'); renderAdminContent();
+}
+
+function addStoreItem(){
+  const el=document.getElementById('adminContent');
+  el.innerHTML=`
+    <div class="shdr"><div class="sdot"></div><h3>➕ Novo Prêmio</h3></div>
+    <div class="card">
+      <div class="af-row">
+        <div>
+          <label class="af-label">Emoji</label>
+          <input class="af-input" type="text" id="ni_ico" value="🎁" style="font-size:28px;text-align:center;padding:8px">
+        </div>
+        <div style="flex:2">
+          <label class="af-label">Tier</label>
+          <select class="af-input" id="ni_tier" style="appearance:auto">
+            <option value="bronze">🥉 Bronze (100–299 FC)</option>
+            <option value="prata" >🥈 Prata  (300–599 FC)</option>
+            <option value="ouro"  >🥇 Ouro   (600–999 FC)</option>
+            <option value="elite" >👑 Elite  (1000+ FC)</option>
+          </select>
+        </div>
+      </div>
+      <div class="af-group"><label class="af-label">Nome do Prêmio</label><input class="af-input" type="text" id="ni_name" placeholder="Ex: Jantar para dois"></div>
+      <div class="af-group"><label class="af-label">Parceiro</label><input class="af-input" type="text" id="ni_partner" placeholder="Ex: Restaurante Parceiro"></div>
+      <div class="af-group"><label class="af-label">Descrição</label><textarea class="af-input" id="ni_desc" rows="2" style="resize:none" placeholder="Descreva o prêmio..."></textarea></div>
+      <div class="af-group"><label class="af-label">Custo em FitCoins</label><input class="af-input" type="number" id="ni_cost" placeholder="Ex: 300" min="1" style="font-size:18px;font-weight:700;color:var(--gold)"></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn-save" style="flex:1" onclick="saveNewStoreItem()">💾 Adicionar Prêmio</button>
+        <button class="btn-danger" style="flex-shrink:0" onclick="switchAdminTab('loja')">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+function saveNewStoreItem(){
+  const ico     = document.getElementById('ni_ico').value.trim()||'🎁';
+  const tier    = document.getElementById('ni_tier').value;
+  const name    = document.getElementById('ni_name').value.trim();
+  const partner = document.getElementById('ni_partner').value.trim();
+  const desc    = document.getElementById('ni_desc').value.trim();
+  const cost    = parseInt(document.getElementById('ni_cost').value)||0;
+  if(!name){ showToast('Nome obrigatório',true); return; }
+  if(!cost){ showToast('Informe o custo em FC',true); return; }
+  if(!S.customStore) S.customStore=JSON.parse(JSON.stringify(DEFAULT_STORE));
+  S.customStore.push({id:'c_'+Date.now(),ico,tier,name,partner,desc,cost});
+  save(); showToast('Prêmio adicionado!'); switchAdminTab('loja');
+}
+function approveResgate(idx){ S.resgates[idx].status='approved'; save(); showToast('✅ Aprovado!'); renderAdminContent(); renderAll(); }
+function rejectResgate(idx){ const r=S.resgates[idx]; S.players[r.pid].fitcoins=(S.players[r.pid].fitcoins||0)+r.cost; r.status='rejected'; save(); showToast('FC devolvidos.'); renderAdminContent(); renderAll(); }
+function savePlayers(){
+  if(!S.pins) S.pins = { 0:'', 1:'', 2:'' };
+  S.players.forEach((p,i)=>{
+    const n   = document.getElementById(`cfg_name_${i}`)?.value.trim();
+    const e   = document.getElementById(`cfg_emoji_${i}`)?.value.trim();
+    const pin = (document.getElementById(`cfg_pin_${i}`)?.value || '').replace(/\D/g,'');
+    if(n) p.name  = n;
+    if(e) p.emoji = e;
+    // PIN salvo em S.pins separado — não mistura com player data
+    if(pin.length === 4) S.pins[i] = pin;
+    // campo vazio = mantém PIN atual
+  });
+  save();
+  showToast('✅ Salvo!');
+  setTimeout(()=>renderAdminContent(), 300);
+}
+function clearPin(i){
+  if(!S.pins) S.pins = { 0:'', 1:'', 2:'' };
+  S.pins[i] = '';
+  save();
+  showToast(`PIN de ${S.players[i].name} removido.`);
+  setTimeout(()=>renderAdminContent(), 300);
+}
+function changePassword(){ const p1=document.getElementById('cfg_pw1').value.trim(), p2=document.getElementById('cfg_pw2').value.trim(); if(!p1){ showToast('Digite uma senha',true); return; } if(p1!==p2){ showToast('Senhas não coincidem',true); return; } S.adminPassword=p1; save(); showToast('🔐 Senha alterada!'); }
+function resetDay(){
+  if(!confirm('Apagar reports de hoje? Os FitCoins do dia também serão devolvidos.')) return;
+  S.players.forEach(p=>{
+    const key = `${p.id}_${today()}`;
+    const r   = S.reports[key];
+    if(r && r.fcEarned){
+      p.fitcoins = Math.max(0, (p.fitcoins||0) - r.fcEarned);
+    }
+    delete S.reports[key];
+  });
+  save(); showToast('Report e FitCoins do dia resetados.'); renderAll();
+}
+
+function resetMonth(){
+  if(!confirm('Limpar mês atual? FitCoins do mês serão devolvidos.')) return;
+  const mk = monthKey();
+  S.players.forEach(p=>{
+    // Devolve FC de todos os reports do mês
+    Object.keys(S.reports).forEach(k=>{
+      if(k.startsWith(`${p.id}_${mk}`)){
+        const r = S.reports[k];
+        if(r && r.fcEarned) p.fitcoins = Math.max(0, (p.fitcoins||0) - r.fcEarned);
+        delete S.reports[k];
+      }
+    });
+  });
+  save(); showToast('Mês limpo.'); renderAll();
+}
+
+function resetAll(){
+  if(!confirm('🔄 ZERAR DADOS OPERACIONAIS?\n\nIsso vai apagar:\n• Todos os reports\n• FitCoins de todas as jogadoras\n• Resgates e histórico\n\nVai MANTER:\n• PINs\n• Nomes e emojis\n• Prêmios da loja\n• Configurações de metas')) return;
+
+  // Zera apenas dados operacionais — mantém configurações
+  S.players.forEach(p=>{ p.fitcoins=0; p.streak=0; p.lastReportDate=null; });
+  S.reports      = {};
+  S.resgates     = [];
+  S.monthArchive = {};
+  S.pendingBonus = null;
+  S.lastAutoClose= null;
+
+  ['p43_local','p43_session'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  save();
+  showToast('Dados zerados. Configurações mantidas ✅');
+  setTimeout(()=>location.reload(), 800);
+}
+
+function resetNuclear(){
+  if(!confirm('💀 APAGAR ABSOLUTAMENTE TUDO?\n\nIsso inclui PINs, nomes, configurações e todos os dados.\nUsado apenas para recomeçar do zero.')) return;
+  ['p43arena_v5','p43_local','p43_session'].forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  ROOT.set(null).then(()=>location.reload()).catch(()=>location.reload());
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function goTab(name){
+  if(name !== 'report') reportDate = null;
+  S.currentTab=name;
+  ['dashboard','painel','report','loja','ranking'].forEach(t=>{ document.getElementById(`tab-${t}`).style.display=t===name?'block':'none'; });
+  document.querySelectorAll('.ni').forEach((el,i)=>{ el.classList.toggle('active',['dashboard','painel','report','loja','ranking'][i]===name); });
+  renderAll();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+// ── PIN SYSTEM ───────────────────────────────────────
+let _pinTarget      = 0;
+let _pinCurrent     = '';
+let _pinFromWelcome = false;
+
+function selectPlayer(i){
+  const pin = getPlayerPin(i);
+  if(!pin){
+    doSelectPlayer(i);
+    return;
+  }
+  // Se já é o jogador atual e PIN está definido, não precisa reautenticar
+  // (já está "logado" — só pede PIN para trocar de perfil)
+  if(i === S.currentPlayer) return;
+  openPinModal(i);
+}
+
+function doSelectPlayer(i){
+  S.currentPlayer = i;
+  saveLocal();
+  renderAll();
+}
+
+function openPinModal(targetIdx){
+  _pinTarget  = targetIdx;
+  _pinCurrent = '';
+  const p = S.players[targetIdx];
+  document.getElementById('pinAvatar').textContent     = p.emoji;
+  document.getElementById('pinPlayerName').textContent = p.name;
+  document.getElementById('pinError').textContent      = '';
+  updatePinDots('');
+  document.getElementById('pinModal').classList.add('show');
+}
+
+function closePinModal(){
+  document.getElementById('pinModal').classList.remove('show');
+  _pinCurrent = '';
+}
+
+function pinKey(digit){
+  if(_pinCurrent.length >= 4) return;
+  _pinCurrent += digit;
+  updatePinDots(_pinCurrent);
+  if(_pinCurrent.length === 4) setTimeout(checkPin, 120);
+}
+
+function pinDel(){
+  _pinCurrent = _pinCurrent.slice(0,-1);
+  updatePinDots(_pinCurrent);
+  document.getElementById('pinError').textContent = '';
+}
+
+function updatePinDots(val, state=''){
+  for(let i=0;i<4;i++){
+    const d = document.getElementById(`pd${i}`);
+    d.className = 'pin-dot' + (i<val.length?' filled':'') + (state==='error'?' error':'');
+  }
+}
+
+function checkPin(){
+  const correct = getPlayerPin(_pinTarget);
+  if(_pinCurrent === correct){
+    closePinModal();
+    if(_pinFromWelcome){
+      _pinFromWelcome = false;
+      finalizeLogin(_pinTarget);
+    } else {
+      doSelectPlayer(_pinTarget);
+      showToast(`Olá, ${S.players[_pinTarget].name}! 👋`);
+    }
+  } else {
+    updatePinDots('1234','error');
+    document.getElementById('pinError').textContent = 'PIN incorreto — tente novamente';
+    setTimeout(()=>{
+      _pinCurrent = '';
+      updatePinDots('');
+      document.getElementById('pinError').textContent = '';
+    }, 900);
+  }
+}
+
+function selectReportDate(dateStr){
+  reportDate = (dateStr === today()) ? null : dateStr;
+  renderReport();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+let _tt;
+function showToast(msg,isErr){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.style.background=isErr?'var(--red)':'var(--gold)'; el.style.color=isErr?'#fff':'#000';
+  el.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+function renderAll(){
+  renderDateChip(); renderPcards(); renderTQB();
+  const t=S.currentTab;
+  if(t==='dashboard') renderDashboard();
+  if(t==='painel')    renderPainel();
+  if(t==='report')    renderReport();
+  if(t==='loja')      renderLoja();
+  if(t==='ranking')   renderRanking();
+}
+
+// ── INIT ─────────────────────────────────────────────
+loadLocal();
+
+// Indicador de conexão
+DB.ref('.info/connected').on('value', snap=>{
+  const dot = document.getElementById('connDot');
+  if(!dot) return;
+  if(snap.val()===true){ dot.className='conn-dot online'; dot.title='Online ✅'; }
+  else                 { dot.className='conn-dot offline'; dot.title='Offline — sem conexão'; }
+});
+
+let _firstLoad = true;
+ROOT.on('value', snapshot=>{
+  const data = snapshot.val();
+  if(data) mergeFirebaseData(data);
+  if(_firstLoad){
+    _firstLoad = false;
+    document.getElementById('loadingScreen').style.display = 'none';
+    // Verifica sessão salva no dispositivo
+    const session = loadSession();
+    if(session && session.player != null){
+      S.currentPlayer = session.player;
+      saveLocal();
+      goTab(S.currentTab||'dashboard');
+    } else {
+      // Sem sessão → mostra tela de boas-vindas
+      goTab('dashboard');
+      showWelcomeScreen();
+    }
+  } else {
+    renderAll();
+  }
+});
+
+// Timeout de segurança: se Firebase demorar mais de 6s, mostra o app mesmo assim
+setTimeout(()=>{
+  if(_firstLoad){
+    _firstLoad = false;
+    document.getElementById('loadingScreen').style.display='none';
+    const session = loadSession();
+    if(session && session.player != null){
+      S.currentPlayer = session.player;
+      goTab(S.currentTab||'dashboard');
+    } else {
+      goTab('dashboard');
+      showWelcomeScreen();
+    }
+    showToast('Modo offline — dados locais',true);
+  }
+},6000);
+</script>
+</body>
+</html>
