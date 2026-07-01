@@ -375,6 +375,18 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <div class="toast" id="toast"></div>
 
+<!-- ADMIN EDIT REPORT MODAL -->
+<div id="adminEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:3000;overflow-y:auto;padding:20px">
+  <div style="background:var(--card);border:1px solid #333;border-radius:var(--r);max-width:480px;margin:0 auto;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span id="aeTitle" style="font-size:15px;font-weight:800;color:var(--gold)"></span>
+      <button onclick="closeAdminEdit()" style="background:none;border:none;color:var(--muted2);font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="aeFields"></div>
+    <button onclick="saveAdminEdit()" style="width:100%;padding:12px;background:var(--gold);color:#000;border:none;border-radius:var(--rs);font-size:14px;font-weight:800;cursor:pointer;margin-top:8px">💾 Salvar Correção</button>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════
 // DEFAULTS
@@ -911,6 +923,72 @@ function manualMonthClose(){
 
   save();
   showToast(`${monthLabel(mk)} fechado e FitCoins resetados! ✅`);
+  renderAll();
+  renderAdminContent();
+}
+
+function manualMonthCloseFor(mk){
+  if(S.monthArchive[mk]) { showToast('⚠️ Mês já fechado!'); return; }
+  if(!confirm(`Fechar ${monthLabel(mk)} retroativamente?\n\nIsso vai arquivar resultados, distribuir bônus e eleger a campeã daquele mês.\n\n⚠️ Esta ação não pode ser desfeita.`)) return;
+
+  const cfg = getCfg(mk);
+  const fcLog = [];
+  const teamTotal = S.players.reduce((s,p) => s + monthRevForKey(p.id, mk), 0);
+
+  // Snapshot dos FC atuais antes de qualquer modificação
+  const fcSnapshot = {};
+  S.players.forEach(p => { fcSnapshot[p.id] = p.fitcoins||0; });
+
+  // Distribui bônus mensais
+  S.players.forEach(p => {
+    const pRev = monthRevForKey(p.id, mk);
+    const items = [];
+    if(pRev >= getPlayerIndQuota(p.id)){
+      p.fitcoins = (p.fitcoins||0) + fc('cotaIndMes');
+      items.push({ label:`🎯 Cota individual`, pts: fc('cotaIndMes') });
+    }
+    if(teamTotal >= cfg.monthQuota){
+      p.fitcoins = (p.fitcoins||0) + fc('cotaTimeMes');
+      items.push({ label:`🏆 Cota time`, pts: fc('cotaTimeMes') });
+    }
+    if(teamTotal >= cfg.superacao){
+      p.fitcoins = (p.fitcoins||0) + fc('superacao');
+      items.push({ label:`🚀 Superação`, pts: fc('superacao') });
+    }
+    if(items.length) fcLog.push({ pid: p.id, name: p.name, items, total: items.reduce((s,i) => s+i.pts, 0) });
+  });
+
+  // Arquiva com ranking baseado no FC snapshot (antes dos bônus)
+  S.monthArchive[mk] = {
+    revenue:       teamTotal,
+    fcLog,
+    playerRanking: S.players.map(p => ({ name: p.name, emoji: p.emoji, fitcoins: fcSnapshot[p.id] })),
+    closedAt:      new Date().toISOString(),
+    closedBy:      'admin-retroativo',
+  };
+
+  // Elege campeã pelo snapshot de FC
+  const champion = S.players.reduce((best, p) => (fcSnapshot[p.id]||0) > (fcSnapshot[best.id]||0) ? p : best, S.players[0]);
+  S.monthChampion = { pid: champion.id, name: champion.name, emoji: champion.emoji, month: mk };
+  fcLog.push({ pid: champion.id, name: champion.name, items: [{ label:`👑 Campeã do mês ${monthLabel(mk)}`, pts: 150 }], total: 150, isChampion: true });
+
+  if(fcLog.length) S.pendingBonus = { month: mk, fcLog };
+  S.lastAutoClose = mk;
+
+  // Zera FC, streak e reports do mês anterior — mantém o que já foi feito em julho
+  const julyReports = {};
+  Object.keys(S.reports).forEach(k => {
+    if(k.includes('_2026-07')) julyReports[k] = S.reports[k];
+  });
+  S.reports = julyReports;
+  S.players.forEach(p => { p.fitcoins = 0; p.streak = 0; p.lastReportDate = null; });
+
+  // Campeã começa julho com +150 FC
+  const champIdx = S.players.findIndex(p => p.id === champion.id);
+  if(champIdx >= 0) S.players[champIdx].fitcoins = 150;
+
+  save();
+  showToast(`${monthLabel(mk)} fechado retroativamente! ✅`);
   renderAll();
   renderAdminContent();
 }
@@ -1633,7 +1711,11 @@ function renderAdminContent(){
         <p style="font-size:12px;color:var(--muted2);margin-bottom:10px">Quando o mês terminar, feche-o aqui. Isso arquiva os resultados, distribui bônus de meta e <strong style="color:var(--gold)">zera os FitCoins de todas as jogadoras</strong>.</p>
         ${S.lastAutoClose === mk ? `<div style="background:#052E16;border:1px solid #166534;border-radius:var(--rs);padding:10px 14px;font-size:12px;color:var(--green)">✅ ${monthLabel(mk)} já foi fechado.</div>` :
         `<button onclick="manualMonthClose()" style="width:100%;padding:14px;background:#1C1800;color:var(--gold);border:2px solid var(--gold-d);border-radius:var(--r);font-size:15px;font-weight:800;cursor:pointer">🔄 Fechar ${monthLabel(mk)} e Resetar FitCoins</button>`}
-      </div>`;
+      </div>
+      ${!S.monthArchive['2026-06'] ? `<div style="margin-top:16px;padding-top:16px;border-top:1px solid #2A2A2A">
+        <p style="font-size:12px;color:var(--amber);margin-bottom:10px">⚠️ Jun/2026 não foi fechado. Feche retroativamente para arquivar resultados e eleger a campeã.</p>
+        <button onclick="manualMonthCloseFor('2026-06')" style="width:100%;padding:12px;background:#1A1000;color:var(--amber);border:2px solid #7F5000;border-radius:var(--r);font-size:14px;font-weight:800;cursor:pointer">📅 Fechar Jun/2026 Retroativamente</button>
+      </div>` : ''}`;
 
   } else if(currentAdminTab==='fc'){
     el.innerHTML=`
@@ -1764,6 +1846,7 @@ function renderAdminContent(){
                 ${fields.map(f=>`<th style="padding:4px 6px;border-bottom:1px solid #242424;text-align:center">${f.label}</th>`).join('')}
                 <th style="padding:4px 6px;border-bottom:1px solid #242424;text-align:right">Total R$</th>
                 <th style="padding:4px 6px;border-bottom:1px solid #242424;text-align:right">FC</th>
+                ${!S.monthArchive[curMonth]?`<th style="padding:4px 6px;border-bottom:1px solid #242424"></th>`:''}
               </tr>
             </thead>
             <tbody>
@@ -1771,6 +1854,7 @@ function renderAdminContent(){
                 const dayNum = date.slice(8);
                 const total = (rep.valorVendasExtras||0)+(rep.valorMatriculas||0)+(rep.valorRenovacoes||0);
                 const fcEarned = rep.fcEarned || 0;
+                const monthClosed = !!S.monthArchive[curMonth];
                 return `<tr style="border-bottom:1px solid #1A1A1A">
                   <td style="padding:5px 6px;font-weight:700;color:var(--gold)">${dayNum}</td>
                   ${fields.map(f=>{
@@ -1779,6 +1863,7 @@ function renderAdminContent(){
                   }).join('')}
                   <td style="padding:5px 6px;text-align:right;color:var(--green);font-weight:700">${total>0?fmtMoneyDec(total):'—'}</td>
                   <td style="padding:5px 6px;text-align:right;color:var(--gold);font-weight:700">${fcEarned>0?'+'+fcEarned:'—'}</td>
+                  ${!monthClosed?`<td style="padding:5px 6px;text-align:center"><button onclick="adminEditReport(${p.id},'${date}')" style="background:var(--card2);border:1px solid #333;color:var(--muted2);padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer">✏️</button></td>`:''}
                 </tr>`;
               }).join('')}
             </tbody>
@@ -1992,6 +2077,72 @@ function savePlayers(){
   showToast('✅ Salvo!');
   setTimeout(()=>renderAdminContent(), 300);
 }
+let _aeState = {};
+function adminEditReport(pid, date){
+  const rep = getReport(pid, date);
+  if(!rep){ showToast('Report não encontrado'); return; }
+  const p = S.players.find(x=>x.id===pid);
+  _aeState = { pid, date, rep: {...rep} };
+  document.getElementById('aeTitle').textContent = `✏️ ${p.emoji} ${p.name} — Dia ${date.slice(8)}`;
+  document.getElementById('aeFields').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Matrículas</label><input id="ae_ma" type="number" min="0" value="${rep.qtdMatriculas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Matrículas (R$)</label><input id="ae_vma" type="number" min="0" step="0.01" value="${rep.valorMatriculas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Renovações</label><input id="ae_re" type="number" min="0" value="${rep.qtdRenovacoes||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Renovações (R$)</label><input id="ae_vre" type="number" min="0" step="0.01" value="${rep.valorRenovacoes||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Vendas Extras</label><input id="ae_ve" type="number" min="0" value="${rep.qtdVendasExtras||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Extras (R$)</label><input id="ae_vve" type="number" min="0" step="0.01" value="${rep.valorVendasExtras||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Upsells</label><input id="ae_up" type="number" min="0" value="${rep.qtdUpsells||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Aulas Exp.</label><input id="ae_ae" type="number" min="0" value="${rep.aulaExp||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Campanhas</label><input id="ae_ca" type="number" min="0" value="${rep.qtdCampanhas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Postagens</label><input id="ae_po" type="number" min="0" value="${rep.qtdPostagens||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+    </div>
+    <div style="background:var(--card2);border-radius:6px;padding:10px;font-size:11px;color:var(--amber);margin-bottom:8px">⚠️ FC será recalculado automaticamente com base nos novos valores.</div>
+  `;
+  document.getElementById('adminEditModal').style.display = 'block';
+}
+function closeAdminEdit(){
+  document.getElementById('adminEditModal').style.display = 'none';
+  _aeState = {};
+}
+function saveAdminEdit(){
+  const { pid, date, rep } = _aeState;
+  if(pid === undefined || !date) return;
+  const p = S.players.find(x=>x.id===pid);
+
+  // Devolve FC do report anterior
+  if(rep.fcEarned) p.fitcoins = Math.max(0, (p.fitcoins||0) - rep.fcEarned);
+
+  // Monta novo report
+  const newRep = {
+    ...rep,
+    qtdMatriculas:    parseInt(document.getElementById('ae_ma').value)||0,
+    valorMatriculas:  parseFloat(document.getElementById('ae_vma').value)||0,
+    qtdRenovacoes:    parseInt(document.getElementById('ae_re').value)||0,
+    valorRenovacoes:  parseFloat(document.getElementById('ae_vre').value)||0,
+    qtdVendasExtras:  parseInt(document.getElementById('ae_ve').value)||0,
+    valorVendasExtras:parseFloat(document.getElementById('ae_vve').value)||0,
+    qtdUpsells:       parseInt(document.getElementById('ae_up').value)||0,
+    aulaExp:          parseInt(document.getElementById('ae_ae').value)||0,
+    qtdCampanhas:     parseInt(document.getElementById('ae_ca').value)||0,
+    qtdPostagens:     parseInt(document.getElementById('ae_po').value)||0,
+    editedByAdmin:    true,
+    editedAt:         new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+  };
+
+  // Recalcula FC
+  const result = calcFC(pid, newRep);
+  newRep.fcEarned = result.total;
+  newRep.fcBreakdown = result.items;
+  p.fitcoins = (p.fitcoins||0) + result.total;
+
+  S.reports[`${pid}_${date}`] = newRep;
+  save();
+  showToast('✅ Report corrigido!');
+  closeAdminEdit();
+  switchAdminTab('diario');
+}
+
 function clearPin(i){
   if(!S.pins) S.pins = { 0:'', 1:'', 2:'' };
   S.pins[i] = '';
