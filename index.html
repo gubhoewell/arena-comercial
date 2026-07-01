@@ -727,7 +727,7 @@ function getPlayerIndQuota(pid){
   return def ? def.indQuota : DEF.indQuota;
 }
 function curCfg(){ return getCfg(monthKey()); }
-function getStore(){ return S.customStore || JSON.parse(JSON.stringify(DEFAULT_STORE)); }
+function getStore(){ return (S.customStore || JSON.parse(JSON.stringify(DEFAULT_STORE))).slice().sort((a,b)=>a.cost-b.cost); }
 
 // ═══════════════════════════════════════════
 // REPORT HELPERS
