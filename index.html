@@ -408,6 +408,7 @@ const DEF_FC = {
   campanha:      5,   // por campanha realizada
   postagem:      3,   // por postagem/conteúdo
   completudeAtiv:3,   // bônus preencher todos os campos de atividade
+  gatilho2k:     20,  // individual atinge R$2k no dia
   gatilho4:      30,  // 4+ planos no dia
   cotaDiaria:    50,  // cota diária do time
   streak5:       50,  // sequência 5 dias
@@ -426,6 +427,7 @@ const FC_RULES_META = [
   { key:'campanha',       label:'Campanha realizada',        sub:'Por campanha em grupo/WhatsApp',   unit:'FC/camp.'   },
   { key:'postagem',       label:'Postagem/Conteúdo',         sub:'Por post em grupo ou redes',       unit:'FC/post'    },
   { key:'completudeAtiv', label:'Bônus completude atividade',sub:'Preencheu abordagens+leads+indic.',unit:'FC/dia'     },
+  { key:'gatilho2k',      label:'Gatilho R$2k individual',   sub:'Vendedora atinge R$2.000 em vendas no dia', unit:'FC/dia' },
   { key:'gatilho4',       label:'Gatilho 4 planos',          sub:'4+ entre matrículas + upsells no dia',      unit:'FC/dia' },
   { key:'cotaDiaria',     label:'Cota diária do time',       sub:'Time bate R$3.100 no dia',         unit:'FC/dia'     },
   { key:'streak5',        label:'Sequência 5 dias',          sub:'5 dias seguidos com cota',         unit:'FC bônus'   },
@@ -750,6 +752,61 @@ function recoveryAmt(){
 }
 function effectiveQuota(){ return curCfg().dailyQuota + recoveryAmt(); }
 
+// ═══════════════════════════════════════════
+// MISSÃO DO DIA — calendário Jul/2026
+// ═══════════════════════════════════════════
+const JULY_MISSIONS = [
+  null, // índice 0 não usado
+  {w:'🔥',focus:'Arranque de Julho',desc:'Retome todos os leads parados em junho. Prioridade: ex-alunos com crédito parado.',tasks:['30 abordagens ativas','10 pedidos de indicação','Reativar 5 ex-alunos']},
+  {w:'🔥',focus:'Arranque de Julho',desc:'Foco em aulas experimentais — pipeline para as próximas semanas.',tasks:['30 abordagens ativas','10 pedidos de indicação','Agendar 2 aulas experimentais']},
+  {w:'🔥',focus:'Arranque de Julho',desc:'Qualifique os leads do disparo de hoje. Resposta rápida = conversão.',tasks:['30 abordagens ativas','10 pedidos de indicação','Fechar janela 24h de todos os leads']},
+  {w:'🔥',focus:'Arranque de Julho',desc:'Sprint de renovações — veja quem vence esta semana e antecipe.',tasks:['30 abordagens ativas','10 pedidos de indicação','Renovar 3 contratos']},
+  {w:'🔥',focus:'Arranque de Julho',desc:'Upsell Black — ofereça upgrade para plano Black a 5 alunos Experience.',tasks:['30 abordagens ativas','Oferecer Black para 5 alunos','Fechar pelo menos 1 upsell']},
+  {w:'🎓',focus:'Semana de Novas Matrículas',desc:'Meta: 4 novas matrículas esta semana. Foco em aulas já realizadas não convertidas.',tasks:['30 abordagens ativas','10 pedidos de indicação','Converter 1 aula exp em matrícula']},
+  {w:'🎓',focus:'Semana de Novas Matrículas',desc:'Campanha Indique e Ganhe ativa — lembre cada aluno que atender.',tasks:['30 abordagens ativas','Executar campanha indicação','Solicitar 10 indicações com contexto']},
+  {w:'🎓',focus:'Semana de Novas Matrículas',desc:'Leads frios do mês passado — nova tentativa de contato com ângulo diferente.',tasks:['30 abordagens ativas','10 pedidos de indicação','Abordar 10 leads frios novos']},
+  {w:'🎓',focus:'Semana de Novas Matrículas',desc:'Revise seu pipeline — quem está próximo de fechar? Priorize esses hoje.',tasks:['30 abordagens ativas','Pipeline revisado','Fechar 2 contratos pendentes']},
+  {w:'🎓',focus:'Semana de Novas Matrículas',desc:'Disparo em massa programado — acompanhe as respostas e converta.',tasks:['30 abordagens ativas','10 pedidos de indicação','Responder 100% dos retornos do disparo']},
+  {w:'⬆️',focus:'Upsell & Upgrade',desc:'Semana de upgrade — Black tem melhor ticket e melhor retenção. Foque nisso.',tasks:['30 abordagens ativas','Oferecer Black para 10 alunos','Converter 2 upgrades']},
+  {w:'⬆️',focus:'Upsell & Upgrade',desc:'Alunos Light e Experience há mais de 3 meses são os melhores candidatos a upgrade.',tasks:['30 abordagens ativas','10 pedidos de indicação','Identificar 5 candidatos a Black']},
+  {w:'⬆️',focus:'Upsell & Upgrade',desc:'Trimestrais vencendo em julho — converta para mensal Black antes de perder.',tasks:['30 abordagens ativas','Listar trimestral vencendo','Renovar como Black']},
+  {w:'⬆️',focus:'Upsell & Upgrade',desc:'Alunos com mais de 1 ano de casa — reconheça e ofereça Black como fidelidade.',tasks:['30 abordagens ativas','10 pedidos de indicação','Abordar alunos antigos com proposta especial']},
+  {w:'⬆️',focus:'Upsell & Upgrade',desc:'Quinta é dia de fechar semana forte. Bata a cota diária hoje para garantir comissão.',tasks:['30 abordagens ativas','10 pedidos de indicação','Bater R$3.100 no time hoje']},
+  {w:'📣',focus:'Campanhas & Ativação',desc:'Semana de campanhas — execute pelo menos 1 ação em grupo de alunos por dia.',tasks:['30 abordagens ativas','1 campanha em grupo WhatsApp','10 pedidos de indicação']},
+  {w:'📣',focus:'Campanhas & Ativação',desc:'Reativação de ex-alunos — envio segmentado. Foco em quem saiu há menos de 6 meses.',tasks:['30 abordagens ativas','Disparo lista ex-alunos','Fechar 1 retorno']},
+  {w:'📣',focus:'Campanhas & Ativação',desc:'Postagem de conteúdo hoje — engajamento gera indicações indiretas.',tasks:['30 abordagens ativas','10 pedidos de indicação','1 postagem em grupos de alunos']},
+  {w:'📣',focus:'Campanhas & Ativação',desc:'Leads frios de aula experimental — lembrete com urgência de vagas limitadas.',tasks:['30 abordagens ativas','Abordar 15 leads aula exp','Converter 2 para matrícula']},
+  {w:'📣',focus:'Campanhas & Ativação',desc:'Sexta pesada — última chance da semana. Double down em abordagens.',tasks:['40 abordagens ativas','10 pedidos de indicação','Fechar pelo menos 2 contratos']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Últimos dias do mês. Tudo que estava aberto precisa fechar agora.',tasks:['30 abordagens ativas','10 pedidos de indicação','Fechar todos os pendentes da semana']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Renovações vencendo em agosto — antecipe e garanta a receita do time.',tasks:['30 abordagens ativas','Renovar contratos de agosto','10 pedidos de indicação']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Meta R$93k — acompanhe o painel e saiba exatamente quanto falta. Cada venda conta.',tasks:['30 abordagens ativas','10 pedidos de indicação','Monitorar cota do time a cada hora']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Penúltimo dia — quem ainda não bateu cota individual tem hoje e amanhã.',tasks:['40 abordagens ativas','10 pedidos de indicação','Bater R$2k individual hoje']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Último dia do mês. Vai até o limite — cada R$100 a mais é comissão real.',tasks:['40 abordagens ativas','10 pedidos de indicação','Bater a cota diária e fechar o mês forte']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Mês fechado. Avalie o que funcionou e prepare a agenda de agosto.',tasks:['Revisar resultados do mês','Registrar aprendizados','Preparar pipeline de agosto']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Planejamento do próximo ciclo. Quais leads estão quentes para agosto?',tasks:['Organizar leads quentes','10 pedidos de indicação','Planejar campanhas de agosto']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Foco total. Time junto.',tasks:['30 abordagens ativas','10 pedidos de indicação','Bater a cota do time']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Último esforço do mês.',tasks:['30 abordagens ativas','10 pedidos de indicação','Fechar contratos abertos']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Sprint final.',tasks:['30 abordagens ativas','10 pedidos de indicação','Bater cota individual']},
+  {w:'🏆',focus:'Sprint Final de Julho',desc:'Encerramento de julho.',tasks:['30 abordagens ativas','10 pedidos de indicação','Bater R$93k do time']},
+];
+
+function getDailyMission(){
+  const d = new Date();
+  const day = d.getDate();
+  if(d.getMonth()===6 && d.getFullYear()===2026){ // julho 2026
+    return JULY_MISSIONS[Math.min(day, JULY_MISSIONS.length-1)] || JULY_MISSIONS[1];
+  }
+  // mês genérico — retorna missão baseada na semana
+  const week = Math.ceil(day/7);
+  const generic=[
+    {w:'🔥',focus:'Arranque do Mês',desc:'Retome os leads e ative seu pipeline.',tasks:['30 abordagens ativas','10 pedidos de indicação','Renovar 3 contratos']},
+    {w:'🎓',focus:'Novas Matrículas',desc:'Foco em converter leads em alunos.',tasks:['30 abordagens ativas','10 pedidos de indicação','Converter 1 aula exp']},
+    {w:'⬆️',focus:'Upsell & Upgrade',desc:'Ofereça Black para alunos Experience.',tasks:['30 abordagens ativas','Oferecer Black para 5 alunos','Converter 2 upgrades']},
+    {w:'🏆',focus:'Sprint Final',desc:'Feche tudo que está em aberto.',tasks:['30 abordagens ativas','10 pedidos de indicação','Bater a cota do time']},
+  ];
+  return generic[Math.min(week-1,3)];
+}
+
 function monthRevForKey(pid,mk){
   return Object.keys(S.reports)
     .filter(k=>k.startsWith(`${pid}_${mk}`))
@@ -814,6 +871,10 @@ function calcFC(pid, r){
   // Bônus completude atividade
   if((r.abordagens||0)>0 && (r.leadsQuentes||0)>0 && (r.indicacoes||0)>0)
     add('⭐ Bônus completude atividade', fc('completudeAtiv'));
+
+  // Gatilho R$2k individual
+  const indTotal = (r.valorVendasExtras||0)+(r.valorMatriculas||0)+(r.valorRenovacoes||0);
+  if(indTotal >= 2000) add('🚀 Gatilho R$2k individual', fc('gatilho2k'));
 
   // Gatilho 4 planos (matrículas + upsells — vendas extras e renovações não contam)
   const totalPlans = ma+up;
@@ -1128,8 +1189,28 @@ function renderDashboard(){
     </div>`;
   }
 
+  const mission = getDailyMission();
+
   document.getElementById('tab-dashboard').innerHTML=`
     ${bonusHtml}
+
+    ${mission ? `<div style="background:linear-gradient(135deg,#1A1400,#1C1600);border:1px solid var(--gold-d);border-radius:var(--r);padding:14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:20px">${mission.w}</span>
+        <div>
+          <div style="font-size:10px;color:var(--gold-d);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Missão do Dia</div>
+          <div style="font-size:14px;font-weight:800;color:var(--gold)">${mission.focus}</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted2);margin-bottom:10px;line-height:1.5">${mission.desc}</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${mission.tasks.map(t=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text)">
+          <span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--gold-d);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:var(--gold)">◆</span>
+          ${t}
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
     <div class="shdr"><div class="sdot"></div><h3>Time Hoje</h3></div>
     <div class="grid4">
       <div class="mstat"><div class="mstat-v cv-green" style="font-size:14px">${fmtMoney(todayTeamRev()).replace('R$ ','')}</div><div class="mstat-l">Receita</div></div>
@@ -1137,6 +1218,24 @@ function renderDashboard(){
       <div class="mstat"><div class="mstat-v cv-amber">${reps}/3</div><div class="mstat-l">Reports</div></div>
       <div class="mstat"><div class="mstat-v cv-white">${Math.round((todayTeamRev()/effectiveQuota())*100)}%</div><div class="mstat-l">Da cota</div></div>
     </div>
+
+    <div style="background:var(--card);border:1px solid #242424;border-radius:var(--rs);padding:10px 14px;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⚡ Gatilho R$2k Individual</div>
+      ${S.players.map(p=>{
+        const r=todayReport(p.id);
+        const indRev=r?(r.valorVendasExtras||0)+(r.valorMatriculas||0)+(r.valorRenovacoes||0):0;
+        const pct=Math.min(100,Math.round((indRev/2000)*100));
+        const hit=indRev>=2000;
+        return `<div style="margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="font-size:12px;font-weight:700">${p.emoji} ${p.name}</span>
+            <span style="font-size:12px;font-weight:800;color:${hit?'var(--green)':pct>=50?'var(--amber)':'var(--muted2)'}">${hit?'✅ +'+fc('gatilho2k')+' FC':fmtMoney(indRev)+' / R$2k'}</span>
+          </div>
+          ${pbar(pct,'5px')}
+        </div>`;
+      }).join('')}
+    </div>
+
     <div class="shdr"><div class="sdot"></div><h3>Ranking do Dia</h3></div>
     ${ranked.map((x,i)=>`<div class="drank">
       <div class="drank-pos">${medals[i]}</div>
@@ -1251,12 +1350,6 @@ function renderPainel(){
     <div class="shdr"><div class="sdot"></div><h3>Hoje</h3></div>
     ${todayHtml}
 
-    <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Comissão Estimada</h3></div>
-    <div class="grid2">
-      <div class="comm-card"><div class="comm-title">Hoje</div><div class="comm-value">${fmtMoneyDec(calcDailyComm(pid))}</div><div class="comm-sub">${teamHitForDate(today())?'✅ Cota batida — 2%v+1%r':'⏳ Aguardando cota do time'}</div></div>
-      <div class="comm-card"><div class="comm-title">Mês</div><div class="comm-value">${fmtMoneyDec(calcMonthComm(pid))}</div><div class="comm-sub">${(()=>{ const r=monthCommRate(); const cfg2=curCfg(); const tRev=totalTeamMonthRev(); return r===0.025?`✅ 2,5% — time bateu ${fmtMoney(cfg2.monthQuota)}`:`⚠️ 1,5% — time em ${fmtMoney(tRev)} de ${fmtMoney(cfg2.monthQuota)}`; })()}</div></div>
-    </div>
-
     <div class="card" style="${indPct>=100?'border-color:var(--green);background:#071A0F':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <span style="font-size:13px;font-weight:700">🎯 Cota Individual — ${fmtMoney(pIndQuota)}</span>
@@ -1364,7 +1457,7 @@ function renderReport(){
           <input class="finput" type="number" id="f_qtdve" min="0" value="${v.qtdVendasExtras||''}" placeholder="0">
         </div>
         <div class="fgroup">
-          <div class="flabel">Matrículas <span class="hint">+${fc('matricula')} FC/un.</span></div>
+          <div class="flabel">Novas Matrículas <span class="hint">+${fc('matricula')} FC/un.</span></div>
           <input class="finput" type="number" id="f_qtdma" min="0" value="${v.qtdMatriculas||''}" placeholder="0">
         </div>
       </div>
