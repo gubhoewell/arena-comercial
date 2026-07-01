@@ -419,6 +419,13 @@ const DEF_FC = {
   superacao:     150, // meta superação
 };
 
+const DEF_RULES = {
+  threshold2k: 2000,  // gatilho individual — vendas do dia
+  minPlanos:   4,     // gatilho planos — mínimo no dia
+  streakDays:  5,     // sequência de dias para bônus
+};
+function gr(key){ return (S.gameRules && S.gameRules[key] != null) ? S.gameRules[key] : DEF_RULES[key]; }
+
 const FC_RULES_META = [
   { key:'report',           label:'Report preenchido',          sub:'Por dia',                                   unit:'FC/dia'     },
   { key:'matricula',        label:'Matrícula realizada',        sub:'Por matrícula fechada',                     unit:'FC/matríc.' },
@@ -637,6 +644,7 @@ function save(){
     monthChampion:  S.monthChampion  || null,
     pins:           S.pins           || { 0:'', 1:'', 2:'' },
     missions:       S.missions       || {},
+    gameRules:      S.gameRules      || {},
   };
   ROOT.set(payload)
     .catch(e=>{ console.error('Firebase write error:',e); showToast('Erro ao salvar ☁️',true); });
@@ -674,6 +682,7 @@ function mergeFirebaseData(data){
   if(S.monthChampion === undefined) S.monthChampion = null;
   if(!S.pins)                     S.pins        = { 0:'', 1:'', 2:'' };
   if(!S.missions)                 S.missions    = {};
+  if(!S.gameRules)                S.gameRules   = {};
 }
 
 // PINs ficam em S.pins separado — nunca misturado com player data
@@ -895,13 +904,13 @@ function calcFC(pid, r){
 
   // Gatilho R$2k individual
   const indTotal = (r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0);
-  if(indTotal >= 2000) add('🚀 Gatilho R$2k individual', fc('gatilho2k'));
+  if(indTotal >= gr('threshold2k')) add(`🚀 Gatilho R$${gr('threshold2k').toLocaleString('pt-BR')} individual`, fc('gatilho2k'));
 
   // Gatilho 4 planos: matrículas + upgrades + plano72(×2)
-  if(ma + ru + (p72*2) >= 4) add('⚡ Gatilho 4 planos no dia', fc('gatilho4'));
+  if(ma + ru + (p72*2) >= gr('minPlanos')) add(`⚡ Gatilho ${gr('minPlanos')} planos no dia`, fc('gatilho4'));
 
   // Streak 5
-  if((S.players[pid].streak||0)>=5) add('🔥 Sequência de 5 dias', fc('streak5'));
+  if((S.players[pid].streak||0)>=gr('streakDays')) add(`🔥 Sequência de ${gr('streakDays')} dias`, fc('streak5'));
 
   // Cota diária do time (preview with this report)
   // Exclui o report anterior da própria jogadora para evitar dupla contagem ao editar
@@ -1241,16 +1250,17 @@ function renderDashboard(){
     </div>
 
     <div style="background:var(--card);border:1px solid #242424;border-radius:var(--rs);padding:10px 14px;margin-bottom:10px">
-      <div style="font-size:10px;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⚡ Gatilho R$2k Individual</div>
+      <div style="font-size:10px;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⚡ Gatilho ${fmtMoney(gr('threshold2k'))} Individual</div>
       ${S.players.map(p=>{
         const r=todayReport(p.id);
         const indRev=r?(r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0):0;
-        const pct=Math.min(100,Math.round((indRev/2000)*100));
-        const hit=indRev>=2000;
+        const thresh=gr('threshold2k');
+        const pct=Math.min(100,Math.round((indRev/thresh)*100));
+        const hit=indRev>=thresh;
         return `<div style="margin-bottom:6px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
             <span style="font-size:12px;font-weight:700">${p.emoji} ${p.name}</span>
-            <span style="font-size:12px;font-weight:800;color:${hit?'var(--green)':pct>=50?'var(--amber)':'var(--muted2)'}">${hit?'✅ +'+fc('gatilho2k')+' FC':fmtMoney(indRev)+' / R$2k'}</span>
+            <span style="font-size:12px;font-weight:800;color:${hit?'var(--green)':pct>=50?'var(--amber)':'var(--muted2)'}">${hit?'✅ +'+fc('gatilho2k')+' FC':fmtMoney(indRev)+' / '+fmtMoney(thresh)}</span>
           </div>
           ${pbar(pct,'5px')}
         </div>`;
@@ -1986,8 +1996,39 @@ function renderAdminContent(){
             <div class="fc-rule-unit">${rule.unit}</div>
           </div>`).join('')}
       </div>
-      <button class="btn-save" onclick="saveFCRules()">💾 Salvar Regras de FC</button>
-      <button class="btn-danger" style="width:100%;margin-top:8px" onclick="resetFCRules()">↩ Restaurar padrões</button>`;
+      <button class="btn-save" onclick="saveFCRules()">💾 Salvar Valores de FC</button>
+      <button class="btn-danger" style="width:100%;margin-top:8px" onclick="resetFCRules()">↩ Restaurar padrões</button>
+
+      <div class="shdr" style="margin-top:20px"><div class="sdot"></div><h3>Condições dos Gatilhos</h3></div>
+      <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Altere os limites e thresholds das regras do jogo.</p>
+      <div class="card">
+        <div class="fc-rule-row">
+          <div style="flex:1">
+            <div class="fc-rule-label">Gatilho individual — threshold</div>
+            <div class="fc-rule-sub">Valor mínimo de vendas no dia para ganhar o bônus</div>
+          </div>
+          <input class="fc-rule-input" type="number" id="gr_threshold2k" value="${gr('threshold2k')}" min="0" step="100">
+          <div class="fc-rule-unit">R$</div>
+        </div>
+        <div class="fc-rule-row">
+          <div style="flex:1">
+            <div class="fc-rule-label">Gatilho planos — mínimo</div>
+            <div class="fc-rule-sub">Matrículas + upgrades + plano72(×2) para ganhar o bônus</div>
+          </div>
+          <input class="fc-rule-input" type="number" id="gr_minPlanos" value="${gr('minPlanos')}" min="1">
+          <div class="fc-rule-unit">planos</div>
+        </div>
+        <div class="fc-rule-row">
+          <div style="flex:1">
+            <div class="fc-rule-label">Sequência — dias seguidos</div>
+            <div class="fc-rule-sub">Dias consecutivos com report para ganhar bônus streak</div>
+          </div>
+          <input class="fc-rule-input" type="number" id="gr_streakDays" value="${gr('streakDays')}" min="2">
+          <div class="fc-rule-unit">dias</div>
+        </div>
+      </div>
+      <button class="btn-save" onclick="saveGameRules()">💾 Salvar Condições</button>
+      <button class="btn-danger" style="width:100%;margin-top:8px" onclick="resetGameRules()">↩ Restaurar padrões</button>`;
 
   } else if(currentAdminTab==='loja'){
     const store=getStore();
@@ -2214,6 +2255,21 @@ function resetFCRules(){
   S.fcRules={}; save();
   FC_RULES_META.forEach(rule=>{ const el=document.getElementById(`fcr_${rule.key}`); if(el) el.value=DEF_FC[rule.key]; });
   showToast('Valores padrão restaurados.');
+}
+function saveGameRules(){
+  if(!S.gameRules) S.gameRules={};
+  S.gameRules.threshold2k = parseFloat(document.getElementById('gr_threshold2k')?.value)||DEF_RULES.threshold2k;
+  S.gameRules.minPlanos   = parseInt(document.getElementById('gr_minPlanos')?.value)||DEF_RULES.minPlanos;
+  S.gameRules.streakDays  = parseInt(document.getElementById('gr_streakDays')?.value)||DEF_RULES.streakDays;
+  save(); showToast('✅ Condições salvas!');
+}
+function resetGameRules(){
+  if(!confirm('Restaurar condições padrão dos gatilhos?')) return;
+  S.gameRules={}; save();
+  document.getElementById('gr_threshold2k').value = DEF_RULES.threshold2k;
+  document.getElementById('gr_minPlanos').value   = DEF_RULES.minPlanos;
+  document.getElementById('gr_streakDays').value  = DEF_RULES.streakDays;
+  showToast('Condições padrão restauradas.');
 }
 
 function editStoreItem(idx){
