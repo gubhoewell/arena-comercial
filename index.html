@@ -419,22 +419,21 @@ const DEF_FC = {
 };
 
 const FC_RULES_META = [
-  { key:'report',         label:'Report preenchido',         sub:'Por dia',                         unit:'FC/dia'     },
-  { key:'vendaExtra',     label:'Venda extra',               sub:'Aluguel, serviço, produto (por unidade)', unit:'FC/venda'   },
-  { key:'matricula',      label:'Matrícula realizada',       sub:'Por matrícula fechada',            unit:'FC/matríc.' },
-  { key:'renovacao',        label:'Renovação normal',            sub:'Por contrato renovado (mesmo plano)', unit:'FC/renov.'  },
-  { key:'renovacaoUpgrade', label:'Renovação com Upgrade',      sub:'Aluno renovou com plano superior', unit:'FC/upgrade' },
-  { key:'aulaExp',        label:'Aula experimental',         sub:'Por aula agendada',                unit:'FC/aula'    },
-  { key:'campanha',       label:'Campanha realizada',        sub:'Por campanha em grupo/WhatsApp',   unit:'FC/camp.'   },
-  { key:'postagem',       label:'Postagem/Conteúdo',         sub:'Por post em grupo ou redes',       unit:'FC/post'    },
-  { key:'completudeAtiv', label:'Bônus completude atividade',sub:'Preencheu abordagens+leads+indic.',unit:'FC/dia'     },
-  { key:'gatilho2k',      label:'Gatilho R$2k individual',   sub:'Vendedora atinge R$2.000 em vendas no dia', unit:'FC/dia' },
-  { key:'gatilho4',       label:'Gatilho 4 planos',          sub:'4+ entre matrículas + upsells no dia',      unit:'FC/dia' },
-  { key:'cotaDiaria',     label:'Cota diária do time',       sub:'Time bate R$3.100 no dia',         unit:'FC/dia'     },
-  { key:'streak5',        label:'Sequência 5 dias',          sub:'5 dias seguidos com cota',         unit:'FC bônus'   },
-  { key:'cotaIndMes',     label:'Cota individual mensal',    sub:'Vendedora bate meta mensal',       unit:'FC/mês'     },
-  { key:'cotaTimeMes',    label:'Cota time mensal',          sub:'Time bate R$93k no mês',           unit:'FC/mês'     },
-  { key:'superacao',      label:'Meta de superação',         sub:'Time bate R$128k no mês',          unit:'FC/mês'     },
+  { key:'report',           label:'Report preenchido',          sub:'Por dia',                                   unit:'FC/dia'     },
+  { key:'matricula',        label:'Matrícula realizada',        sub:'Por matrícula fechada',                     unit:'FC/matríc.' },
+  { key:'renovacao',        label:'Renovação normal',           sub:'Por contrato renovado (mesmo plano)',        unit:'FC/renov.'  },
+  { key:'renovacaoUpgrade', label:'Renovação com Upgrade',      sub:'Aluno renovou com plano superior',          unit:'FC/upgrade' },
+  { key:'aulaExp',          label:'Aula experimental',          sub:'Por aula agendada',                         unit:'FC/aula'    },
+  { key:'campanha',         label:'Campanha realizada',         sub:'Por campanha em grupo/WhatsApp',            unit:'FC/camp.'   },
+  { key:'postagem',         label:'Postagem/Conteúdo',          sub:'Por post em grupo ou redes',                unit:'FC/post'    },
+  { key:'completudeAtiv',   label:'Bônus completude atividade', sub:'Preencheu abordagens+leads+indic.',         unit:'FC/dia'     },
+  { key:'gatilho2k',        label:'Gatilho R$2k individual',    sub:'Vendedora atinge R$2.000 em vendas no dia', unit:'FC/dia'     },
+  { key:'gatilho4',         label:'Gatilho 4 matrículas',       sub:'4+ novas matrículas no dia',               unit:'FC/dia'     },
+  { key:'cotaDiaria',       label:'Cota diária do time',        sub:'Time bate R$3.100 no dia',                  unit:'FC/dia'     },
+  { key:'streak5',          label:'Sequência 5 dias',           sub:'5 dias seguidos com cota',                  unit:'FC bônus'   },
+  { key:'cotaIndMes',       label:'Cota individual mensal',     sub:'Vendedora bate meta mensal',                unit:'FC/mês'     },
+  { key:'cotaTimeMes',      label:'Cota time mensal',           sub:'Time bate R$93k no mês',                    unit:'FC/mês'     },
+  { key:'superacao',        label:'Meta de superação',          sub:'Time bate R$128k no mês',                   unit:'FC/mês'     },
 ];
 
 const LEVELS = [
