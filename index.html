@@ -409,6 +409,7 @@ const DEF_FC = {
   campanha:      5,   // por campanha realizada
   postagem:      3,   // por postagem/conteúdo
   completudeAtiv:3,   // bônus preencher todos os campos de atividade
+  plano72:       50,  // plano 72 créditos (vale 2 planos no gatilho)
   gatilho2k:     20,  // individual atinge R$2k no dia
   gatilho4:      30,  // 4+ planos no dia
   cotaDiaria:    50,  // cota diária do time
@@ -428,7 +429,8 @@ const FC_RULES_META = [
   { key:'postagem',         label:'Postagem/Conteúdo',          sub:'Por post em grupo ou redes',                unit:'FC/post'    },
   { key:'completudeAtiv',   label:'Bônus completude atividade', sub:'Preencheu abordagens+leads+indic.',         unit:'FC/dia'     },
   { key:'gatilho2k',        label:'Gatilho R$2k individual',    sub:'Vendedora atinge R$2.000 em vendas no dia', unit:'FC/dia'     },
-  { key:'gatilho4',         label:'Gatilho 4 matrículas',       sub:'4+ novas matrículas no dia',               unit:'FC/dia'     },
+  { key:'plano72',          label:'Plano 72 créditos',          sub:'Plano anual (vale 2 planos no gatilho)',    unit:'FC/plano'   },
+  { key:'gatilho4',         label:'Gatilho 4 planos no dia',    sub:'Matrículas + upgrades + plano72(×2) ≥ 4',  unit:'FC/dia'     },
   { key:'cotaDiaria',       label:'Cota diária do time',        sub:'Time bate R$3.100 no dia',                  unit:'FC/dia'     },
   { key:'streak5',          label:'Sequência 5 dias',           sub:'5 dias seguidos com cota',                  unit:'FC bônus'   },
   { key:'cotaIndMes',       label:'Cota individual mensal',     sub:'Vendedora bate meta mensal',                unit:'FC/mês'     },
@@ -858,11 +860,13 @@ function calcFC(pid, r){
   add('📝 Report preenchido', fc('report'));
 
   // Per-unit verified metrics
-  const ma=r.qtdMatriculas||0, re=r.qtdRenovacoes||0, ru=r.qtdRenovacoesUpgrade||0, ae=r.aulaExp||0;
+  const ma=r.qtdMatriculas||0, re=r.qtdRenovacoes||0, ru=r.qtdRenovacoesUpgrade||0;
+  const p72=r.qtdPlano72||0, ae=r.aulaExp||0;
   const ca=r.qtdCampanhas||0, po=r.qtdPostagens||0;
   if(ma>0) add(`🎓 ${ma} nova${ma>1?'s':''} matrícula${ma>1?'s':''}`, ma*fc('matricula'));
   if(re>0) add(`🔄 ${re} renovação${re>1?'ões':''}`, re*fc('renovacao'));
   if(ru>0) add(`⬆️ ${ru} renovação${ru>1?'ões':''} com upgrade`, ru*fc('renovacaoUpgrade'));
+  if(p72>0) add(`🟡 ${p72} plano${p72>1?'s':''} 72 créditos`, p72*fc('plano72'));
   if(ae>0) add(`🎾 ${ae} aula${ae>1?'s':''} experimental`, ae*fc('aulaExp'));
   if(ca>0) add(`📣 ${ca} campanha${ca>1?'s':''} realizada${ca>1?'s':''}`, ca*fc('campanha'));
   if(po>0) add(`📸 ${po} postagem${po>1?'ns':''}`, po*fc('postagem'));
@@ -875,8 +879,8 @@ function calcFC(pid, r){
   const indTotal = (r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0);
   if(indTotal >= 2000) add('🚀 Gatilho R$2k individual', fc('gatilho2k'));
 
-  // Gatilho 4 planos (só novas matrículas)
-  if(ma>=4) add('⚡ Gatilho 4 matrículas no dia', fc('gatilho4'));
+  // Gatilho 4 planos: matrículas + upgrades + plano72(×2)
+  if(ma + ru + (p72*2) >= 4) add('⚡ Gatilho 4 planos no dia', fc('gatilho4'));
 
   // Streak 5
   if((S.players[pid].streak||0)>=5) add('🔥 Sequência de 5 dias', fc('streak5'));
@@ -1065,6 +1069,7 @@ function submitReport(e){
     qtdMatriculas:        parseInt(document.getElementById('f_qtdma').value)||0,
     qtdRenovacoes:        parseInt(document.getElementById('f_qtdr').value)||0,
     qtdRenovacoesUpgrade: parseInt(document.getElementById('f_qtdru').value)||0,
+    qtdPlano72:           parseInt(document.getElementById('f_qtdp72').value)||0,
     aulaExp:          parseInt(document.getElementById('f_aula').value)||0,
     qtdCampanhas:     parseInt(document.getElementById('f_camp').value)||0,
     qtdPostagens:     parseInt(document.getElementById('f_post').value)||0,
@@ -1311,6 +1316,7 @@ function renderPainel(){
     {key:'qtdMatriculas',        label:'Matrículas',        mt:cfg.monthTargets.vendas,  e:'🎓'},
     {key:'qtdRenovacoes',        label:'Renovações',        mt:cfg.monthTargets.vendas,  e:'🔄'},
     {key:'qtdRenovacoesUpgrade', label:'Renov. c/ Upgrade', mt:5,                        e:'⬆️'},
+    {key:'qtdPlano72',           label:'Plano 72 créditos', mt:3,                        e:'🟡'},
     {key:'aulaExp',              label:'Aulas Exp.',        mt:cfg.monthTargets.aulaExp, e:'🎾'},
     {key:'qtdCampanhas',    label:'Campanhas',      mt:10,                       e:'📣'},
     {key:'qtdPostagens',    label:'Postagens',      mt:20,                       e:'📸'},
@@ -1462,9 +1468,13 @@ function renderReport(){
           <input class="finput" type="number" id="f_qtdru" min="0" value="${v.qtdRenovacoesUpgrade||''}" placeholder="0">
         </div>
         <div class="fgroup">
-          <div class="flabel">Aulas Exp. <span class="hint">+${fc('aulaExp')} FC/un.</span></div>
-          <input class="finput" type="number" id="f_aula" min="0" value="${v.aulaExp||''}" placeholder="0">
+          <div class="flabel">Plano 72 créditos <span class="hint">+${fc('plano72')} FC · ×2 gatilho</span></div>
+          <input class="finput" type="number" id="f_qtdp72" min="0" value="${v.qtdPlano72||''}" placeholder="0">
         </div>
+      </div>
+      <div class="fgroup">
+        <div class="flabel">Aulas Exp. <span class="hint">+${fc('aulaExp')} FC/un.</span></div>
+        <input class="finput" type="number" id="f_aula" min="0" value="${v.aulaExp||''}" placeholder="0">
       </div>
 
       <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Receita (R$)</h3></div>
@@ -1949,6 +1959,7 @@ function renderAdminContent(){
       {key:'qtdMatriculas',        label:'N.Matrículas'},
       {key:'qtdRenovacoes',        label:'Renovações'},
       {key:'qtdRenovacoesUpgrade', label:'Upgrade'},
+      {key:'qtdPlano72',           label:'Plano 72'},
       {key:'aulaExp',              label:'Aulas Exp'},
       {key:'qtdCampanhas',         label:'Campanhas'},
       {key:'qtdPostagens',         label:'Postagens'},
@@ -2218,6 +2229,7 @@ function adminEditReport(pid, date){
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Matrículas (R$)</label><input id="ae_vma" type="number" min="0" step="0.01" value="${rep.valorMatriculas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Renovações Normais</label><input id="ae_re" type="number" min="0" value="${rep.qtdRenovacoes||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Renov. com Upgrade</label><input id="ae_ru" type="number" min="0" value="${rep.qtdRenovacoesUpgrade||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Plano 72 créditos</label><input id="ae_p72" type="number" min="0" value="${rep.qtdPlano72||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Renovações (R$)</label><input id="ae_vre" type="number" min="0" step="0.01" value="${rep.valorRenovacoes||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Outras Vendas (R$)</label><input id="ae_valout" type="number" min="0" step="0.01" value="${rep.valorOutrasVendas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Aulas Exp.</label><input id="ae_ae" type="number" min="0" value="${rep.aulaExp||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
@@ -2247,6 +2259,7 @@ function saveAdminEdit(){
     valorMatriculas:  parseFloat(document.getElementById('ae_vma').value)||0,
     qtdRenovacoes:        parseInt(document.getElementById('ae_re').value)||0,
     qtdRenovacoesUpgrade: parseInt(document.getElementById('ae_ru').value)||0,
+    qtdPlano72:           parseInt(document.getElementById('ae_p72').value)||0,
     valorRenovacoes:      parseFloat(document.getElementById('ae_vre').value)||0,
     valorOutrasVendas:    parseFloat(document.getElementById('ae_valout').value)||0,
     aulaExp:          parseInt(document.getElementById('ae_ae').value)||0,
