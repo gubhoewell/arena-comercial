@@ -645,6 +645,7 @@ function save(){
     pins:           S.pins           || { 0:'', 1:'', 2:'' },
     missions:       S.missions       || {},
     gameRules:      S.gameRules      || {},
+    customTriggers: S.customTriggers || [],
   };
   ROOT.set(payload)
     .catch(e=>{ console.error('Firebase write error:',e); showToast('Erro ao salvar ☁️',true); });
@@ -683,6 +684,7 @@ function mergeFirebaseData(data){
   if(!S.pins)                     S.pins        = { 0:'', 1:'', 2:'' };
   if(!S.missions)                 S.missions    = {};
   if(!S.gameRules)                S.gameRules   = {};
+  if(!S.customTriggers)          S.customTriggers = [];
 }
 
 // PINs ficam em S.pins separado — nunca misturado com player data
@@ -923,6 +925,18 @@ function calcFC(pid, r){
   const previewRev = otherTeamRev+(r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0);
   const quotaForDay = activeD === today() ? effectiveQuota() : getCfg(activeD.slice(0,7)).dailyQuota;
   if(previewRev >= quotaForDay) add('🏆 Cota diária do time', fc('cotaDiaria'));
+
+  // Gatilhos personalizados
+  (S.customTriggers||[]).filter(t=>t.enabled).forEach(t=>{
+    if(t.type==='valor'){
+      if(indTotal >= (t.threshold||0)) add(t.label||'Gatilho', t.fc||0);
+    } else if(t.type==='quantidade'){
+      const qval = r[t.field]||0;
+      if(qval >= (t.threshold||0)) add(t.label||'Gatilho', t.fc||0);
+    } else if(t.type==='sequencia'){
+      if((S.players[pid].streak||0) >= (t.days||2)) add(t.label||'Sequência', t.fc||0);
+    }
+  });
 
   const total=items.reduce((s,i)=>s+i.pts,0);
   return{items,total};
@@ -2028,7 +2042,48 @@ function renderAdminContent(){
         </div>
       </div>
       <button class="btn-save" onclick="saveGameRules()">💾 Salvar Condições</button>
-      <button class="btn-danger" style="width:100%;margin-top:8px" onclick="resetGameRules()">↩ Restaurar padrões</button>`;
+      <button class="btn-danger" style="width:100%;margin-top:8px" onclick="resetGameRules()">↩ Restaurar padrões</button>
+
+      <div class="shdr" style="margin-top:20px"><div class="sdot"></div><h3>Gatilhos Personalizados</h3></div>
+      <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Crie seus próprios gatilhos de FC além dos padrão.</p>
+      ${(S.customTriggers||[]).length===0?`<p style="font-size:12px;color:var(--muted);margin-bottom:14px">Nenhum gatilho personalizado ainda.</p>`:`
+      <div class="card" style="margin-bottom:12px">
+        ${(S.customTriggers||[]).map((t,i)=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;${i>0?'border-top:1px solid #1a1a1a':''}">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700;color:${t.enabled?'var(--text)':'var(--muted)'}">${t.label||'Sem nome'}</div>
+            <div style="font-size:11px;color:var(--muted2)">${t.sub||''} · ${t.type==='valor'?'R$ '+t.threshold:t.type==='quantidade'?t.threshold+' '+t.field:t.days+' dias'} → +${t.fc} FC</div>
+          </div>
+          <button onclick="toggleCustomTrigger(${i})" style="background:${t.enabled?'#1a2e1a':'#2e1a1a'};border:1px solid ${t.enabled?'#2a4a2a':'#4a2a2a'};color:${t.enabled?'var(--green)':'var(--muted)'};border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">${t.enabled?'Ativo':'Pausado'}</button>
+          <button onclick="editCustomTrigger(${i})" style="background:var(--card2);border:1px solid #333;color:var(--gold);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">✏️</button>
+          <button onclick="deleteCustomTrigger(${i})" style="background:var(--card2);border:1px solid #333;color:var(--red);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">🗑️</button>
+        </div>`).join('')}
+      </div>`}
+      <button class="btn-save" onclick="openCustomTriggerForm()">+ Novo Gatilho</button>
+
+      <div id="ctForm" style="display:none;background:var(--card);border:1px solid #333;border-radius:var(--rs);padding:14px;margin-top:12px">
+        <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:12px" id="ctFormTitle">Novo Gatilho</div>
+        <input type="hidden" id="ct_editIdx" value="-1">
+        <div style="display:grid;gap:10px">
+          <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Nome do gatilho</label>
+            <input id="ct_label" placeholder="Ex: Gatilho Fim de Semana" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:13px;box-sizing:border-box"></div>
+          <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Descrição curta</label>
+            <input id="ct_sub" placeholder="Ex: Vende R$3k num sábado" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:13px;box-sizing:border-box"></div>
+          <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Tipo</label>
+            <select id="ct_type" onchange="renderCTFields()" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:13px">
+              <option value="valor">💰 Gatilho de Valor — vendas do dia ≥ R$X</option>
+              <option value="quantidade">🔢 Gatilho de Quantidade — campo ≥ N unidades</option>
+              <option value="sequencia">🔥 Gatilho de Sequência — X dias seguidos</option>
+            </select></div>
+          <div id="ctDynamicFields"></div>
+          <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">FitCoins ganhos</label>
+            <input id="ct_fc" type="number" min="1" placeholder="Ex: 25" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:13px;box-sizing:border-box"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn-save" style="flex:1" onclick="saveCustomTrigger()">💾 Salvar</button>
+          <button class="btn-danger" onclick="document.getElementById('ctForm').style.display='none'">Cancelar</button>
+        </div>
+      </div>`;
 
   } else if(currentAdminTab==='loja'){
     const store=getStore();
@@ -2270,6 +2325,95 @@ function resetGameRules(){
   document.getElementById('gr_minPlanos').value   = DEF_RULES.minPlanos;
   document.getElementById('gr_streakDays').value  = DEF_RULES.streakDays;
   showToast('Condições padrão restauradas.');
+}
+
+const CT_FIELDS = {
+  qtdMatriculas:        'Novas Matrículas',
+  qtdRenovacoes:        'Renovações',
+  qtdRenovacoesUpgrade: 'Renovações com Upgrade',
+  qtdPlano72:           'Plano 72 créditos',
+  aulaExp:              'Aulas Experimentais',
+  qtdCampanhas:         'Campanhas',
+  qtdPostagens:         'Postagens',
+};
+
+function renderCTFields(){
+  const type = document.getElementById('ct_type')?.value;
+  const el = document.getElementById('ctDynamicFields');
+  if(!el) return;
+  if(type==='valor'){
+    el.innerHTML=`<div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Vendas mínimas do dia (R$)</label>
+      <input id="ct_threshold" type="number" min="0" step="100" placeholder="Ex: 3000" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:13px;box-sizing:border-box"></div>`;
+  } else if(type==='quantidade'){
+    el.innerHTML=`
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Campo</label>
+        <select id="ct_field" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:13px">
+          ${Object.entries(CT_FIELDS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+        </select></div>
+      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Mínimo de unidades</label>
+        <input id="ct_threshold" type="number" min="1" placeholder="Ex: 3" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:13px;box-sizing:border-box"></div>`;
+  } else if(type==='sequencia'){
+    el.innerHTML=`<div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Dias seguidos necessários</label>
+      <input id="ct_days" type="number" min="2" placeholder="Ex: 3" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:13px;box-sizing:border-box"></div>`;
+  }
+}
+
+function openCustomTriggerForm(editIdx=-1){
+  document.getElementById('ct_editIdx').value = editIdx;
+  document.getElementById('ctFormTitle').textContent = editIdx>=0 ? 'Editar Gatilho' : 'Novo Gatilho';
+  if(editIdx>=0){
+    const t = S.customTriggers[editIdx];
+    document.getElementById('ct_label').value = t.label||'';
+    document.getElementById('ct_sub').value   = t.sub||'';
+    document.getElementById('ct_type').value  = t.type||'valor';
+    document.getElementById('ct_fc').value    = t.fc||'';
+    renderCTFields();
+    setTimeout(()=>{
+      if(t.type==='valor'||t.type==='quantidade') document.getElementById('ct_threshold').value = t.threshold||'';
+      if(t.type==='quantidade') document.getElementById('ct_field').value = t.field||'qtdMatriculas';
+      if(t.type==='sequencia') document.getElementById('ct_days').value = t.days||'';
+    },0);
+  } else {
+    document.getElementById('ct_label').value = '';
+    document.getElementById('ct_sub').value   = '';
+    document.getElementById('ct_type').value  = 'valor';
+    document.getElementById('ct_fc').value    = '';
+    renderCTFields();
+  }
+  document.getElementById('ctForm').style.display='block';
+}
+
+function editCustomTrigger(idx){ openCustomTriggerForm(idx); }
+
+function saveCustomTrigger(){
+  const type  = document.getElementById('ct_type').value;
+  const label = document.getElementById('ct_label').value.trim();
+  const sub   = document.getElementById('ct_sub').value.trim();
+  const fc    = parseInt(document.getElementById('ct_fc').value)||0;
+  if(!label){ showToast('Dê um nome ao gatilho.',true); return; }
+  if(!fc){ showToast('Defina o valor em FC.',true); return; }
+  const t = { label, sub, type, fc, enabled:true };
+  if(type==='valor'||type==='quantidade') t.threshold = parseFloat(document.getElementById('ct_threshold')?.value)||0;
+  if(type==='quantidade') t.field = document.getElementById('ct_field')?.value||'qtdMatriculas';
+  if(type==='sequencia') t.days = parseInt(document.getElementById('ct_days')?.value)||2;
+  if(!S.customTriggers) S.customTriggers=[];
+  const idx = parseInt(document.getElementById('ct_editIdx').value);
+  if(idx>=0) S.customTriggers[idx]={...S.customTriggers[idx],...t};
+  else S.customTriggers.push(t);
+  save(); showToast('✅ Gatilho salvo!');
+  document.getElementById('ctForm').style.display='none';
+  switchAdminTab('fc');
+}
+
+function deleteCustomTrigger(idx){
+  if(!confirm('Remover este gatilho?')) return;
+  S.customTriggers.splice(idx,1); save(); showToast('Gatilho removido.');
+  switchAdminTab('fc');
+}
+
+function toggleCustomTrigger(idx){
+  S.customTriggers[idx].enabled = !S.customTriggers[idx].enabled;
+  save(); switchAdminTab('fc');
 }
 
 function editStoreItem(idx){
