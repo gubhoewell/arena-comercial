@@ -858,12 +858,10 @@ function calcFC(pid, r){
   add('📝 Report preenchido', fc('report'));
 
   // Per-unit verified metrics
-  const ve=r.qtdVendasExtras||0, ma=r.qtdMatriculas||0, re=r.qtdRenovacoes||0, up=r.qtdUpsells||0, ae=r.aulaExp||0;
+  const ma=r.qtdMatriculas||0, re=r.qtdRenovacoes||0, ae=r.aulaExp||0;
   const ca=r.qtdCampanhas||0, po=r.qtdPostagens||0;
-  if(ve>0) add(`✅ ${ve} venda${ve>1?'s':''} extra${ve>1?'s':''} (aluguel/serviço/produto)`, ve*fc('vendaExtra'));
-  if(ma>0) add(`🎓 ${ma} matrícula${ma>1?'s':''} realizada${ma>1?'s':''}`, ma*fc('matricula'));
+  if(ma>0) add(`🎓 ${ma} nova${ma>1?'s':''} matrícula${ma>1?'s':''}`, ma*fc('matricula'));
   if(re>0) add(`🔄 ${re} renovação${re>1?'ões':''}`, re*fc('renovacao'));
-  if(up>0) add(`⬆️ ${up} upsell${up>1?'s':''}`, up*fc('upsell'));
   if(ae>0) add(`🎾 ${ae} aula${ae>1?'s':''} experimental`, ae*fc('aulaExp'));
   if(ca>0) add(`📣 ${ca} campanha${ca>1?'s':''} realizada${ca>1?'s':''}`, ca*fc('campanha'));
   if(po>0) add(`📸 ${po} postagem${po>1?'ns':''}`, po*fc('postagem'));
@@ -873,12 +871,11 @@ function calcFC(pid, r){
     add('⭐ Bônus completude atividade', fc('completudeAtiv'));
 
   // Gatilho R$2k individual
-  const indTotal = (r.valorVendasExtras||0)+(r.valorMatriculas||0)+(r.valorRenovacoes||0);
+  const indTotal = (r.valorMatriculas||0)+(r.valorRenovacoes||0);
   if(indTotal >= 2000) add('🚀 Gatilho R$2k individual', fc('gatilho2k'));
 
-  // Gatilho 4 planos (matrículas + upsells — vendas extras e renovações não contam)
-  const totalPlans = ma+up;
-  if(totalPlans>=4) add('⚡ Gatilho 4 planos no dia', fc('gatilho4'));
+  // Gatilho 4 planos (só novas matrículas)
+  if(ma>=4) add('⚡ Gatilho 4 matrículas no dia', fc('gatilho4'));
 
   // Streak 5
   if((S.players[pid].streak||0)>=5) add('🔥 Sequência de 5 dias', fc('streak5'));
@@ -1060,21 +1057,17 @@ function manualMonthCloseFor(mk){
 function submitReport(e){
   e.preventDefault();
   const pid=S.currentPlayer, p=S.players[pid];
-  const valVE=parseFloat(document.getElementById('f_valve').value)||0;
   const valMA=parseFloat(document.getElementById('f_valma').value)||0;
   const valR =parseFloat(document.getElementById('f_valr').value)||0;
   const r={
-    qtdVendasExtras:  parseInt(document.getElementById('f_qtdve').value)||0,
     qtdMatriculas:    parseInt(document.getElementById('f_qtdma').value)||0,
     qtdRenovacoes:    parseInt(document.getElementById('f_qtdr').value)||0,
-    qtdUpsells:       parseInt(document.getElementById('f_qtdu').value)||0,
     aulaExp:          parseInt(document.getElementById('f_aula').value)||0,
     qtdCampanhas:     parseInt(document.getElementById('f_camp').value)||0,
     qtdPostagens:     parseInt(document.getElementById('f_post').value)||0,
     abordagens:       parseInt(document.getElementById('f_abord').value)||0,
     leadsQuentes:     parseInt(document.getElementById('f_leads').value)||0,
     indicacoes:       parseInt(document.getElementById('f_indic').value)||0,
-    valorVendasExtras: valVE,
     valorMatriculas:   valMA,
     valorRenovacoes:   valR,
     obs:              document.getElementById('f_obs').value||'',
@@ -1287,13 +1280,11 @@ function renderPainel(){
   // Today block
   const todayHtml = r ? `
     <div class="grid3" style="margin-bottom:8px">
-      <div class="mstat"><div class="mstat-v cv-green">${r.qtdVendasExtras||0}</div><div class="mstat-l">✅ V.Extra</div></div>
       <div class="mstat"><div class="mstat-v cv-gold">${r.qtdMatriculas||0}</div><div class="mstat-l">🎓 Matrículas</div></div>
       <div class="mstat"><div class="mstat-v cv-amber">${r.qtdRenovacoes||0}</div><div class="mstat-l">🔄 Renov.</div></div>
-    </div>
-    <div class="grid4" style="margin-bottom:8px">
-      <div class="mstat"><div class="mstat-v cv-white">${r.qtdUpsells||0}</div><div class="mstat-l">⬆️ Upsells</div></div>
       <div class="mstat"><div class="mstat-v cv-white">${r.aulaExp||0}</div><div class="mstat-l">🎾 Aulas</div></div>
+    </div>
+    <div class="grid3" style="margin-bottom:8px">
       <div class="mstat"><div class="mstat-v cv-amber">${r.qtdCampanhas||0}</div><div class="mstat-l">📣 Camp.</div></div>
       <div class="mstat"><div class="mstat-v cv-amber">${r.qtdPostagens||0}</div><div class="mstat-l">📸 Posts</div></div>
     </div>
@@ -1312,10 +1303,8 @@ function renderPainel(){
 
   // Monthly funnel — verified metrics
   const verifiedMetrics=[
-    {key:'qtdVendasExtras', label:'V. Extras',       mt:cfg.monthTargets.vendas,  e:'✅'},
     {key:'qtdMatriculas',   label:'Matrículas',     mt:cfg.monthTargets.vendas,  e:'🎓'},
     {key:'qtdRenovacoes',   label:'Renovações',     mt:cfg.monthTargets.vendas,  e:'🔄'},
-    {key:'qtdUpsells',      label:'Upsells',        mt:10,                       e:'⬆️'},
     {key:'aulaExp',         label:'Aulas Exp.',     mt:cfg.monthTargets.aulaExp, e:'🎾'},
     {key:'qtdCampanhas',    label:'Campanhas',      mt:10,                       e:'📣'},
     {key:'qtdPostagens',    label:'Postagens',      mt:20,                       e:'📸'},
@@ -1453,35 +1442,21 @@ function renderReport(){
 
       <div class="frow">
         <div class="fgroup">
-          <div class="flabel">Vendas Extras <span class="hint">+${fc('vendaExtra')} FC/un.</span></div>
-          <input class="finput" type="number" id="f_qtdve" min="0" value="${v.qtdVendasExtras||''}" placeholder="0">
-        </div>
-        <div class="fgroup">
           <div class="flabel">Novas Matrículas <span class="hint">+${fc('matricula')} FC/un.</span></div>
           <input class="finput" type="number" id="f_qtdma" min="0" value="${v.qtdMatriculas||''}" placeholder="0">
         </div>
-      </div>
-      <div class="frow3">
         <div class="fgroup">
-          <div class="flabel">Renovações <span class="hint">+${fc('renovacao')} FC</span></div>
+          <div class="flabel">Renovações <span class="hint">+${fc('renovacao')} FC/un.</span></div>
           <input class="finput" type="number" id="f_qtdr" min="0" value="${v.qtdRenovacoes||''}" placeholder="0">
         </div>
-        <div class="fgroup">
-          <div class="flabel">Upsells <span class="hint">+${fc('upsell')} FC</span></div>
-          <input class="finput" type="number" id="f_qtdu" min="0" value="${v.qtdUpsells||''}" placeholder="0">
-        </div>
-        <div class="fgroup">
-          <div class="flabel">Aulas Exp. <span class="hint">+${fc('aulaExp')} FC</span></div>
-          <input class="finput" type="number" id="f_aula" min="0" value="${v.aulaExp||''}" placeholder="0">
-        </div>
+      </div>
+      <div class="fgroup">
+        <div class="flabel">Aulas Exp. <span class="hint">+${fc('aulaExp')} FC/un.</span></div>
+        <input class="finput" type="number" id="f_aula" min="0" value="${v.aulaExp||''}" placeholder="0">
       </div>
 
       <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Receita (R$)</h3></div>
-      <div class="frow3">
-        <div class="fgroup">
-          <div class="flabel">Valor Extras</div>
-          <input class="finput money" type="number" id="f_valve" min="0" step="0.01" value="${v.valorVendasExtras||''}" placeholder="0,00" oninput="updateTotal()">
-        </div>
+      <div class="frow">
         <div class="fgroup">
           <div class="flabel">Valor Matrículas</div>
           <input class="finput money" type="number" id="f_valma" min="0" step="0.01" value="${v.valorMatriculas||''}" placeholder="0,00" oninput="updateTotal()">
@@ -1534,11 +1509,10 @@ function renderReport(){
 }
 
 function updateTotal(){
-  const ve=parseFloat(document.getElementById('f_valve')?.value)||0;
   const ma=parseFloat(document.getElementById('f_valma')?.value)||0;
   const r =parseFloat(document.getElementById('f_valr')?.value)||0;
   const el=document.getElementById('f_total');
-  if(el) el.value=(ve+ma+r)>0?fmtMoneyDec(ve+ma+r):'—';
+  if(el) el.value=(ma+r)>0?fmtMoneyDec(ma+r):'—';
 }
 
 // ═══════════════════════════════════════════
@@ -1759,8 +1733,8 @@ function renderAdminContent(){
         const r=todayReport(pid);
         const champ=isChampion(pid);
         const lv=getLevel(p.fitcoins||0), lvp=lvProgress(p.fitcoins||0);
-        const ve=monthStat(pid,'qtdVendasExtras'), ma=monthStat(pid,'qtdMatriculas');
-        const re=monthStat(pid,'qtdRenovacoes'), up=monthStat(pid,'qtdUpsells');
+        const ma=monthStat(pid,'qtdMatriculas');
+        const re=monthStat(pid,'qtdRenovacoes');
         const ae=monthStat(pid,'aulaExp'), ca=monthStat(pid,'qtdCampanhas'), po=monthStat(pid,'qtdPostagens');
         const comm=calcMonthComm(pid);
         return `<div class="card" style="margin-bottom:14px;${champ?'border-color:var(--gold)':''}">
@@ -1785,14 +1759,12 @@ function renderAdminContent(){
             <div style="font-size:11px;color:var(--muted2);margin-top:3px">${indPct>=100?'✅ Meta batida! +R$500':'Faltam '+fmtMoney(pIndQuota-mRev)} · Proj: ${fmtMoney(proj(mRev,de))}</div>
           </div>
 
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px">
             <div class="mstat"><div class="mstat-v cv-green" style="font-size:16px">${ma}</div><div class="mstat-l">🎓 Matrículas</div></div>
             <div class="mstat"><div class="mstat-v cv-amber" style="font-size:16px">${re}</div><div class="mstat-l">🔄 Renov.</div></div>
-            <div class="mstat"><div class="mstat-v cv-gold" style="font-size:16px">${up}</div><div class="mstat-l">⬆️ Upsells</div></div>
             <div class="mstat"><div class="mstat-v cv-white" style="font-size:16px">${ae}</div><div class="mstat-l">🎾 Aulas</div></div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px">
-            <div class="mstat"><div class="mstat-v" style="font-size:15px;color:var(--text)">${ve}</div><div class="mstat-l">✅ V.Extra</div></div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px">
             <div class="mstat"><div class="mstat-v cv-amber" style="font-size:15px">${ca}</div><div class="mstat-l">📣 Camp.</div></div>
             <div class="mstat"><div class="mstat-v cv-amber" style="font-size:15px">${po}</div><div class="mstat-l">📸 Posts</div></div>
           </div>
@@ -1956,10 +1928,8 @@ function renderAdminContent(){
     const days = [];
     for(let d=1; d<=daysInMonth; d++) days.push(curMonth+'-'+(d<10?'0'+d:d));
     const fields = [
-      {key:'qtdVendasExtras',label:'V.Extra'},
       {key:'qtdMatriculas',label:'N.Matrículas'},
       {key:'qtdRenovacoes',label:'Renovações'},
-      {key:'qtdUpsells',label:'Upsells'},
       {key:'aulaExp',label:'Aulas Exp'},
       {key:'qtdCampanhas',label:'Campanhas'},
       {key:'qtdPostagens',label:'Postagens'},
@@ -2229,9 +2199,6 @@ function adminEditReport(pid, date){
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Matrículas (R$)</label><input id="ae_vma" type="number" min="0" step="0.01" value="${rep.valorMatriculas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Renovações</label><input id="ae_re" type="number" min="0" value="${rep.qtdRenovacoes||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Renovações (R$)</label><input id="ae_vre" type="number" min="0" step="0.01" value="${rep.valorRenovacoes||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
-      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">V. Extras (aluguel/serviço)</label><input id="ae_ve" type="number" min="0" value="${rep.qtdVendasExtras||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
-      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Extras (R$)</label><input id="ae_vve" type="number" min="0" step="0.01" value="${rep.valorVendasExtras||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
-      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Upsells</label><input id="ae_up" type="number" min="0" value="${rep.qtdUpsells||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Aulas Exp.</label><input id="ae_ae" type="number" min="0" value="${rep.aulaExp||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Campanhas</label><input id="ae_ca" type="number" min="0" value="${rep.qtdCampanhas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Postagens</label><input id="ae_po" type="number" min="0" value="${rep.qtdPostagens||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
@@ -2259,9 +2226,6 @@ function saveAdminEdit(){
     valorMatriculas:  parseFloat(document.getElementById('ae_vma').value)||0,
     qtdRenovacoes:    parseInt(document.getElementById('ae_re').value)||0,
     valorRenovacoes:  parseFloat(document.getElementById('ae_vre').value)||0,
-    qtdVendasExtras:  parseInt(document.getElementById('ae_ve').value)||0,
-    valorVendasExtras:parseFloat(document.getElementById('ae_vve').value)||0,
-    qtdUpsells:       parseInt(document.getElementById('ae_up').value)||0,
     aulaExp:          parseInt(document.getElementById('ae_ae').value)||0,
     qtdCampanhas:     parseInt(document.getElementById('ae_ca').value)||0,
     qtdPostagens:     parseInt(document.getElementById('ae_po').value)||0,
