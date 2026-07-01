@@ -1484,6 +1484,7 @@ const ADMIN_TABS=[
   {id:'loja',      label:'🛍️ Prêmios'},
   {id:'resgates',  label:'✅ Resgates'},
   {id:'historico', label:'📊 Histórico'},
+  {id:'diario',    label:'📆 Diário'},
   {id:'config',    label:'⚙️ Config'},
 ];
 
@@ -1716,6 +1717,72 @@ function renderAdminContent(){
         </div>`;
       }).join(''):
       `<div class="empty"><div class="big">📊</div>Nenhum mês fechado ainda.<br>Use o botão na aba <strong>📅 Mês</strong> para fechar quando o mês terminar.</div>`}`;
+
+  } else if(currentAdminTab==='diario'){
+    const curMonth = today().slice(0,7);
+    const daysInMonth = new Date(parseInt(curMonth.slice(0,4)), parseInt(curMonth.slice(5,7)), 0).getDate();
+    const days = [];
+    for(let d=1; d<=daysInMonth; d++) days.push(curMonth+'-'+(d<10?'0'+d:d));
+    const fields = [
+      {key:'vendasExtras',label:'Extras'},
+      {key:'matriculas',label:'Matrículas'},
+      {key:'renovacoes',label:'Renovações'},
+      {key:'upsells',label:'Upsells'},
+      {key:'aulasExp',label:'Aulas Exp'},
+      {key:'campanhas',label:'Campanhas'},
+      {key:'postagens',label:'Postagens'},
+    ];
+    el.innerHTML=`
+      <div class="shdr"><div class="sdot"></div><h3>Relatórios Diários — ${monthLabel(curMonth)}</h3></div>
+      ${S.players.map(p=>{
+        const reps = days.map(d=>({date:d, rep:getReport(p.id,d)})).filter(x=>x.rep);
+        if(!reps.length) return `<div class="card" style="margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700;margin-bottom:6px">${p.emoji} ${p.name}</div>
+          <div style="font-size:12px;color:var(--muted2)">Nenhum report ainda.</div>
+        </div>`;
+        return `<div class="card" style="margin-bottom:16px">
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px">${p.emoji} ${p.name}</div>
+          <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="color:var(--muted2);text-align:left">
+                <th style="padding:4px 6px;border-bottom:1px solid #242424">Dia</th>
+                ${fields.map(f=>`<th style="padding:4px 6px;border-bottom:1px solid #242424;text-align:center">${f.label}</th>`).join('')}
+                <th style="padding:4px 6px;border-bottom:1px solid #242424;text-align:right">Total R$</th>
+                <th style="padding:4px 6px;border-bottom:1px solid #242424;text-align:right">FC</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reps.map(({date,rep})=>{
+                const dayNum = date.slice(8);
+                const total = (rep.valorVendasExtras||0)+(rep.valorMatriculas||0)+(rep.valorRenovacoes||0);
+                const fcEarned = rep.fcEarned || 0;
+                return `<tr style="border-bottom:1px solid #1A1A1A">
+                  <td style="padding:5px 6px;font-weight:700;color:var(--gold)">${dayNum}</td>
+                  ${fields.map(f=>{
+                    const v = rep[f.key]||0;
+                    return `<td style="padding:5px 6px;text-align:center;color:${v>0?'var(--text)':'var(--muted)'}">${v||'—'}</td>`;
+                  }).join('')}
+                  <td style="padding:5px 6px;text-align:right;color:var(--green);font-weight:700">${total>0?fmtMoneyDec(total):'—'}</td>
+                  <td style="padding:5px 6px;text-align:right;color:var(--gold);font-weight:700">${fcEarned>0?'+'+fcEarned:'—'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background:var(--card2)">
+                <td style="padding:6px;font-weight:800;font-size:12px">Total</td>
+                ${fields.map(f=>{
+                  const sum = reps.reduce((s,{rep})=>s+(rep[f.key]||0),0);
+                  return `<td style="padding:6px;text-align:center;font-weight:800;color:${sum>0?'var(--text)':'var(--muted)'}">${sum||'—'}</td>`;
+                }).join('')}
+                <td style="padding:6px;text-align:right;font-weight:800;color:var(--green)">${fmtMoneyDec(reps.reduce((s,{rep})=>s+(rep.valorVendasExtras||0)+(rep.valorMatriculas||0)+(rep.valorRenovacoes||0),0))}</td>
+                <td style="padding:6px;text-align:right;font-weight:800;color:var(--gold)">${reps.reduce((s,{rep})=>s+(rep.fcEarned||0),0)} FC</td>
+              </tr>
+            </tfoot>
+          </table>
+          </div>
+        </div>`;
+      }).join('')}`;
 
   } else if(currentAdminTab==='config'){
     el.innerHTML=`
