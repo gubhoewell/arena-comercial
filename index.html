@@ -389,12 +389,12 @@ const DEF = {
 const DEF_FC = {
   report:        5,   // report preenchido
   vendaExtra:    15,  // por venda extra
-  matricula:     15,  // por matrícula realizada
-  renovacao:     8,   // por renovação
+  matricula:     25,  // por matrícula realizada
+  renovacao:     15,  // por renovação
   upsell:        20,  // por upsell
-  aulaExp:       15,  // por aula experimental
-  campanha:      10,  // por campanha realizada
-  postagem:      5,   // por postagem/conteúdo
+  aulaExp:       8,   // por aula experimental
+  campanha:      5,   // por campanha realizada
+  postagem:      3,   // por postagem/conteúdo
   completudeAtiv:3,   // bônus preencher todos os campos de atividade
   gatilho4:      30,  // 4+ planos no dia
   cotaDiaria:    50,  // cota diária do time
@@ -448,9 +448,9 @@ const DEFAULT_STORE = [
 ];
 
 const DEFAULT_PLAYERS = [
-  { id:0, name:'Emilly', emoji:'🌟', schedule:'Home Office · 8h/dia',             fitcoins:0, streak:0, lastReportDate:null },
-  { id:1, name:'Julia',  emoji:'⚡', schedule:'Home 11-13h + Presencial 16-22h',  fitcoins:0, streak:0, lastReportDate:null },
-  { id:2, name:'Luana',  emoji:'🔥', schedule:'Presencial 13h30-19h30 · 6h/dia', fitcoins:0, streak:0, lastReportDate:null },
+  { id:0, name:'Emilly', emoji:'🌟', schedule:'Home Office · 8h/dia',             fitcoins:0, streak:0, lastReportDate:null, indQuota:35000 },
+  { id:1, name:'Julia',  emoji:'⚡', schedule:'Home 11-13h + Presencial 16-22h',  fitcoins:0, streak:0, lastReportDate:null, indQuota:28000 },
+  { id:2, name:'Luana',  emoji:'🔥', schedule:'Presencial 13h30-19h30 · 6h/dia', fitcoins:0, streak:0, lastReportDate:null, indQuota:23000 },
 ];
 
 // ═══════════════════════════════════════════
@@ -708,6 +708,12 @@ function getCfg(mk){
     monthTargets: c.monthTargets ? {...c.monthTargets} : {...DEF.monthTargets},
   };
 }
+function getPlayerIndQuota(pid){
+  const p = S.players.find(x=>x.id===pid);
+  if(p && p.indQuota) return p.indQuota;
+  const def = DEFAULT_PLAYERS.find(x=>x.id===pid);
+  return def ? def.indQuota : DEF.indQuota;
+}
 function curCfg(){ return getCfg(monthKey()); }
 function getStore(){ return S.customStore || JSON.parse(JSON.stringify(DEFAULT_STORE)); }
 
@@ -864,7 +870,7 @@ function manualMonthClose(){
   S.players.forEach(p => {
     const pRev = monthRevForKey(p.id, mk);
     const items = [];
-    if(pRev >= cfg.indQuota){
+    if(pRev >= getPlayerIndQuota(p.id)){
       p.fitcoins = (p.fitcoins||0) + fc('cotaIndMes');
       items.push({ label:`🎯 Cota individual`, pts: fc('cotaIndMes') });
     }
@@ -1098,7 +1104,8 @@ function renderPainel(){
   const pid=S.currentPlayer, p=S.players[pid];
   const r=todayReport(pid), cfg=curCfg(), de=daysElapsed();
   const lv=getLevel(p.fitcoins||0), lvp=lvProgress(p.fitcoins||0);
-  const mRev=monthRev(pid), indPct=Math.min(100,Math.round((mRev/cfg.indQuota)*100));
+  const pIndQuota=getPlayerIndQuota(pid);
+  const mRev=monthRev(pid), indPct=Math.min(100,Math.round((mRev/pIndQuota)*100));
 
   // Today block
   const todayHtml = r ? `
@@ -1174,13 +1181,13 @@ function renderPainel(){
 
     <div class="card" style="${indPct>=100?'border-color:var(--green);background:#071A0F':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:13px;font-weight:700">🎯 Cota Individual — ${fmtMoney(cfg.indQuota)}</span>
+        <span style="font-size:13px;font-weight:700">🎯 Cota Individual — ${fmtMoney(pIndQuota)}</span>
         <span style="font-size:13px;font-weight:800;color:${cc(indPct)==='g'?'var(--green)':cc(indPct)==='a'?'var(--amber)':'var(--red)'}">${indPct}%</span>
       </div>
       ${pbar(indPct,'7px')}
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted2);margin-top:5px">
         <span>${fmtMoney(mRev)} faturado</span>
-        <span>${indPct>=100?`🎉 Bônus +${fc('cotaIndMes')} FC ativado!`:'Faltam '+fmtMoney(cfg.indQuota-mRev)}</span>
+        <span>${indPct>=100?`🎉 Bônus +${fc('cotaIndMes')} FC ativado!`:'Faltam '+fmtMoney(pIndQuota-mRev)}</span>
       </div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid #2A2A2A;display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:12px;color:var(--muted2)">💰 Bônus em dinheiro</span>
@@ -1431,7 +1438,7 @@ function renderRanking(){
   document.getElementById('tab-ranking').innerHTML=`
     <div class="shdr"><div class="sdot"></div><h3>Ranking — FitCoins</h3></div>
     ${sorted.map((p,i)=>{
-      const mR=monthRev(p.id), iPct=Math.min(100,Math.round((mR/cfg.indQuota)*100));
+      const mR=monthRev(p.id), iPct=Math.min(100,Math.round((mR/getPlayerIndQuota(p.id))*100));
       return `<div class="rcard ${rcls[i]||''}">
         <div class="rmedal">${medals[i]||`#${i+1}`}</div>
         <div class="ravatar">${p.emoji}</div>
@@ -1530,7 +1537,8 @@ function renderAdminContent(){
       <div class="shdr"><div class="sdot"></div><h3>Visão Geral — ${monthLabel(mk)}</h3><div class="sbadge">Dia ${de}</div></div>
       ${S.players.map(p=>{
         const pid=p.id;
-        const mRev=monthRev(pid), indPct=Math.min(100,Math.round((mRev/cfg.indQuota)*100));
+        const pIndQuota=getPlayerIndQuota(pid);
+        const mRev=monthRev(pid), indPct=Math.min(100,Math.round((mRev/pIndQuota)*100));
         const r=todayReport(pid);
         const champ=isChampion(pid);
         const lv=getLevel(p.fitcoins||0), lvp=lvProgress(p.fitcoins||0);
@@ -1557,7 +1565,7 @@ function renderAdminContent(){
               <span style="font-size:12px;font-weight:800;color:${cc(indPct)==='g'?'var(--green)':cc(indPct)==='a'?'var(--amber)':'var(--red)'}">${indPct}% · ${fmtMoneyDec(mRev)}</span>
             </div>
             ${pbar(indPct,'6px')}
-            <div style="font-size:11px;color:var(--muted2);margin-top:3px">${indPct>=100?'✅ Meta batida! +R$500':'Faltam '+fmtMoney(cfg.indQuota-mRev)} · Proj: ${fmtMoney(proj(mRev,de))}</div>
+            <div style="font-size:11px;color:var(--muted2);margin-top:3px">${indPct>=100?'✅ Meta batida! +R$500':'Faltam '+fmtMoney(pIndQuota-mRev)} · Proj: ${fmtMoney(proj(mRev,de))}</div>
           </div>
 
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px">
@@ -1816,6 +1824,10 @@ function renderAdminContent(){
                 oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)">
             </div>
             <p style="font-size:11px;color:var(--muted);margin-top:5px">${pinSet?'Deixe vazio para manter o PIN atual.':'Digite 4 dígitos para ativar o PIN.'}</p>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+              <label style="font-size:11px;color:var(--muted2);white-space:nowrap">🎯 Meta individual (R$):</label>
+              <input class="af-input" type="number" id="cfg_quota_${i}" value="${p.indQuota||getPlayerIndQuota(i)}" style="flex:1">
+            </div>
           </div>`;
         }).join('')}
         <button class="btn-save" onclick="savePlayers()">💾 Salvar</button>
@@ -1970,6 +1982,8 @@ function savePlayers(){
     const pin = (document.getElementById(`cfg_pin_${i}`)?.value || '').replace(/\D/g,'');
     if(n) p.name  = n;
     if(e) p.emoji = e;
+    const quota = parseFloat(document.getElementById(`cfg_quota_${i}`)?.value);
+    if(quota > 0) p.indQuota = quota;
     // PIN salvo em S.pins separado — não mistura com player data
     if(pin.length === 4) S.pins[i] = pin;
     // campo vazio = mantém PIN atual
