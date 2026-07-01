@@ -1727,13 +1727,13 @@ function renderAdminContent(){
     const days = [];
     for(let d=1; d<=daysInMonth; d++) days.push(curMonth+'-'+(d<10?'0'+d:d));
     const fields = [
-      {key:'vendasExtras',label:'Extras'},
-      {key:'matriculas',label:'Matrículas'},
-      {key:'renovacoes',label:'Renovações'},
-      {key:'upsells',label:'Upsells'},
-      {key:'aulasExp',label:'Aulas Exp'},
-      {key:'campanhas',label:'Campanhas'},
-      {key:'postagens',label:'Postagens'},
+      {key:'qtdVendasExtras',label:'Extras'},
+      {key:'qtdMatriculas',label:'Matrículas'},
+      {key:'qtdRenovacoes',label:'Renovações'},
+      {key:'qtdUpsells',label:'Upsells'},
+      {key:'aulaExp',label:'Aulas Exp'},
+      {key:'qtdCampanhas',label:'Campanhas'},
+      {key:'qtdPostagens',label:'Postagens'},
     ];
     el.innerHTML=`
       <div class="shdr"><div class="sdot"></div><h3>Relatórios Diários</h3></div>
