@@ -636,6 +636,7 @@ function save(){
     pendingBonus:   S.pendingBonus   || null,
     monthChampion:  S.monthChampion  || null,
     pins:           S.pins           || { 0:'', 1:'', 2:'' },
+    missions:       S.missions       || {},
   };
   ROOT.set(payload)
     .catch(e=>{ console.error('Firebase write error:',e); showToast('Erro ao salvar ☁️',true); });
@@ -672,6 +673,7 @@ function mergeFirebaseData(data){
   if(!S.monthArchive)             S.monthArchive  = {};
   if(S.monthChampion === undefined) S.monthChampion = null;
   if(!S.pins)                     S.pins        = { 0:'', 1:'', 2:'' };
+  if(!S.missions)                 S.missions    = {};
 }
 
 // PINs ficam em S.pins separado — nunca misturado com player data
@@ -792,9 +794,24 @@ const JULY_MISSIONS = [
   {w:'🏆',focus:'Sprint Final de Julho',desc:'Encerramento de julho.',tasks:['30 abordagens ativas','10 pedidos de indicação','Bater R$93k do time']},
 ];
 
+function seedMissionsIfEmpty(){
+  const hasJuly = Object.keys(S.missions||{}).some(k=>k.startsWith('2026-07'));
+  if(hasJuly) return;
+  const seeded = {};
+  for(let d=1; d<=31; d++){
+    const m = JULY_MISSIONS[Math.min(d, JULY_MISSIONS.length-1)];
+    if(m) seeded[`2026-07-${String(d).padStart(2,'0')}`] = m;
+  }
+  S.missions = { ...S.missions, ...seeded };
+  save();
+}
+
 function getDailyMission(){
   const d = new Date();
   const day = d.getDate();
+  const dateKey = today();
+  // Prioridade: Firebase → hardcoded julho → genérico
+  if(S.missions && S.missions[dateKey]) return S.missions[dateKey];
   if(d.getMonth()===6 && d.getFullYear()===2026){ // julho 2026
     return JULY_MISSIONS[Math.min(day, JULY_MISSIONS.length-1)] || JULY_MISSIONS[1];
   }
@@ -1510,6 +1527,7 @@ function renderReport(){
       </div>
 
       <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Atividade <span style="font-size:10px;color:var(--muted2);font-weight:400;text-transform:none;letter-spacing:0">· +${fc('completudeAtiv')} FC se preencher tudo</span></h3></div>
+      ${(()=>{const m=getDailyMission();return m&&m.tasks&&m.tasks.length?`<div style="background:#1a1500;border:1px solid #3a2e00;border-radius:var(--rs);padding:10px 12px;margin-bottom:10px"><div style="font-size:10px;color:var(--gold);font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${m.w||'🎯'} Missão de hoje — ${m.focus||''}</div>${m.tasks.map(t=>`<div style="font-size:12px;color:var(--muted2);margin-bottom:3px">→ ${t}</div>`).join('')}</div>`:'';})()}
       <div class="frow3">
         <div class="fgroup">
           <div class="flabel">Abordagens</div>
@@ -1659,6 +1677,7 @@ function renderRanking(){
 const ADMIN_TABS=[
   {id:'overview',  label:'👁️ Visão Geral'},
   {id:'mes',       label:'📅 Mês'},
+  {id:'missoes',   label:'🎯 Missões'},
   {id:'fc',        label:'🪙 FitCoins'},
   {id:'loja',      label:'🛍️ Prêmios'},
   {id:'resgates',  label:'✅ Resgates'},
@@ -1691,6 +1710,76 @@ function pwSubmit(){
 }
 function closePwModal(){ document.getElementById('pwModal').classList.remove('show'); }
 function showAdminPanel(){ renderAdminTabs(); renderAdminContent(); document.getElementById('adminOv').classList.add('show'); document.getElementById('btnAdmin').className='btn-admin unlocked'; }
+
+// ═══════════════════════════════════════════
+// ADMIN MISSÕES
+// ═══════════════════════════════════════════
+function renderAdminMissoes(){
+  const el = document.getElementById('adminContent');
+  if(!window._adminMissoesMes) window._adminMissoesMes = monthKey();
+  const curMes = window._adminMissoesMes;
+
+  // Months with missions + current month
+  const mesSet = new Set([monthKey()]);
+  Object.keys(S.missions||{}).forEach(k=>mesSet.add(k.slice(0,7)));
+  const meses = [...mesSet].sort();
+
+  const [yr, mo] = curMes.split('-').map(Number);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+
+  const rows = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = `${curMes}-${String(d).padStart(2,'0')}`;
+    const m = (S.missions||{})[dateStr] || {w:'', focus:'', desc:'', tasks:['','','']};
+    rows.push(`
+      <div style="background:var(--card);border:1px solid #242424;border-radius:var(--rs);padding:12px;margin-bottom:8px" id="mrow_${dateStr}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:800;color:var(--gold);min-width:28px">Dia ${d}</span>
+          <input id="mw_${dateStr}" value="${m.w||''}" placeholder="🔥" style="width:42px;background:var(--card2);border:1px solid #333;border-radius:6px;padding:6px;color:var(--text);font-size:16px;text-align:center">
+          <input id="mf_${dateStr}" value="${(m.focus||'').replace(/"/g,'&quot;')}" placeholder="Foco do dia" style="flex:1;background:var(--card2);border:1px solid #333;border-radius:6px;padding:6px;color:var(--text);font-size:13px;font-weight:700">
+        </div>
+        <textarea id="md_${dateStr}" placeholder="Descrição estratégica..." rows="2" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:6px;color:var(--text);font-size:12px;resize:none;margin-bottom:6px;box-sizing:border-box">${m.desc||''}</textarea>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
+          ${[0,1,2].map(i=>`<input id="mt${i}_${dateStr}" value="${((m.tasks||[])[i]||'').replace(/"/g,'&quot;')}" placeholder="Tarefa ${i+1}" style="background:var(--card2);border:1px solid #2a2a2a;border-radius:6px;padding:6px 8px;color:var(--muted2);font-size:12px">`).join('')}
+        </div>
+        <button onclick="saveDayMission('${dateStr}')" style="background:var(--gold);color:#000;border:none;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:800;cursor:pointer">Salvar</button>
+        <span id="msaved_${dateStr}" style="font-size:11px;color:var(--green);margin-left:8px;display:none">✓ Salvo</span>
+      </div>`);
+  }
+
+  el.innerHTML=`
+    <div class="shdr"><div class="sdot"></div><h3>Calendário de Missões</h3></div>
+    <p style="font-size:12px;color:var(--muted2);margin-bottom:12px">Defina o foco e as 3 tarefas de cada dia. Aparece no Dashboard e no Report das vendedoras.</p>
+    <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+      ${meses.map(m=>`<button onclick="window._adminMissoesMes='${m}';renderAdminContent()" style="padding:6px 14px;border-radius:20px;border:1px solid ${m===curMes?'var(--gold)':'#333'};background:${m===curMes?'#1C1800':'var(--card)'};color:${m===curMes?'var(--gold)':'var(--muted2)'};font-size:12px;font-weight:700;cursor:pointer">${monthLabel(m)}</button>`).join('')}
+      <button onclick="addMissionMonth()" style="padding:6px 14px;border-radius:20px;border:1px solid #333;background:var(--card);color:var(--muted2);font-size:12px;font-weight:700;cursor:pointer">+ Novo mês</button>
+    </div>
+    ${rows.join('')}`;
+}
+
+function saveDayMission(dateStr){
+  if(!S.missions) S.missions = {};
+  const tasks = [0,1,2].map(i=>(document.getElementById(`mt${i}_${dateStr}`)?.value||'').trim()).filter(t=>t);
+  S.missions[dateStr] = {
+    w:     (document.getElementById(`mw_${dateStr}`)?.value||'').trim(),
+    focus: (document.getElementById(`mf_${dateStr}`)?.value||'').trim(),
+    desc:  (document.getElementById(`md_${dateStr}`)?.value||'').trim(),
+    tasks,
+  };
+  save();
+  const el = document.getElementById(`msaved_${dateStr}`);
+  if(el){ el.style.display='inline'; setTimeout(()=>el.style.display='none', 2000); }
+}
+
+function addMissionMonth(){
+  const cur = window._adminMissoesMes || monthKey();
+  const [yr, mo] = cur.split('-').map(Number);
+  const next = mo === 12
+    ? `${yr+1}-01`
+    : `${yr}-${String(mo+1).padStart(2,'0')}`;
+  window._adminMissoesMes = next;
+  renderAdminContent();
+}
 function closeAdmin(){ document.getElementById('adminOv').classList.remove('show'); }
 function renderAdminTabs(){
   document.getElementById('adminTabsEl').innerHTML=ADMIN_TABS.map(t=>
@@ -1855,6 +1944,9 @@ function renderAdminContent(){
         <p style="font-size:12px;color:var(--amber);margin-bottom:10px">⚠️ Jun/2026 não foi fechado. Feche retroativamente para arquivar resultados e eleger a campeã.</p>
         <button onclick="manualMonthCloseFor('2026-06')" style="width:100%;padding:12px;background:#1A1000;color:var(--amber);border:2px solid #7F5000;border-radius:var(--r);font-size:14px;font-weight:800;cursor:pointer">📅 Fechar Jun/2026 Retroativamente</button>
       </div>` : ''}`;
+
+  } else if(currentAdminTab==='missoes'){
+    renderAdminMissoes();
 
   } else if(currentAdminTab==='fc'){
     el.innerHTML=`
@@ -2474,6 +2566,7 @@ ROOT.on('value', snapshot=>{
   if(data) mergeFirebaseData(data);
   if(_firstLoad){
     _firstLoad = false;
+    seedMissionsIfEmpty();
     document.getElementById('loadingScreen').style.display = 'none';
     // Verifica sessão salva no dispositivo
     const session = loadSession();
