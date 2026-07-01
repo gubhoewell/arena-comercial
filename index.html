@@ -1610,9 +1610,55 @@ function renderAdminContent(){
   const el=document.getElementById('adminContent');
 
   if(currentAdminTab==='overview'){
-    const de=daysElapsed();
+    const allOvMonths = [mk, ...Object.keys(S.monthArchive).sort().reverse().filter(m=>m!==mk)];
+    if(!window._adminOvMes || !allOvMonths.includes(window._adminOvMes)) window._adminOvMes = mk;
+    const ovMk = window._adminOvMes;
+    const isCurrentMonth = ovMk === mk;
+    const de = isCurrentMonth ? daysElapsed() : new Date(ovMk+'-01').toLocaleString('pt-BR',{month:'long',year:'numeric'});
+
+    // Se mês fechado, mostra resumo do arquivo
+    if(!isCurrentMonth && S.monthArchive[ovMk]){
+      const arch = S.monthArchive[ovMk];
+      const cfg2 = getCfg(ovMk);
+      const teamPct = Math.min(100,Math.round((arch.revenue/cfg2.monthQuota)*100));
+      el.innerHTML=`
+        <div class="shdr"><div class="sdot"></div><h3>Visão Geral</h3></div>
+        <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+          ${allOvMonths.map(m=>`<button onclick="window._adminOvMes='${m}';renderAdminContent()" style="padding:6px 14px;border-radius:20px;border:1px solid ${m===ovMk?'var(--gold)':'#333'};background:${m===ovMk?'#1C1800':'var(--card)'};color:${m===ovMk?'var(--gold)':'var(--muted2)'};font-size:12px;font-weight:700;cursor:pointer">${monthLabel(m)}</button>`).join('')}
+        </div>
+        <div class="card" style="margin-bottom:12px;border-color:#333">
+          <div style="font-size:16px;font-weight:800;color:var(--gold);margin-bottom:10px">📅 ${monthLabel(ovMk)} — Fechado</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:700">🏆 Receita do Time</span>
+            <span style="font-size:13px;font-weight:800;color:${teamPct>=100?'var(--green)':'var(--amber)'}">${teamPct}% · ${fmtMoney(arch.revenue)}</span>
+          </div>
+          ${pbar(teamPct,'7px')}
+          <div style="font-size:11px;color:var(--muted2);margin-top:5px">Meta: ${fmtMoney(cfg2.monthQuota)}</div>
+        </div>
+        <div class="shdr"><div class="sdot"></div><h3>Ranking Final</h3></div>
+        ${arch.playerRanking ? [...arch.playerRanking].sort((a,b)=>b.fitcoins-a.fitcoins).map((r,i)=>`
+          <div class="card" style="margin-bottom:8px;${i===0?'border-color:var(--gold)':''}">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:24px">${['🥇','🥈','🥉'][i]||`#${i+1}`}</span>
+              <span style="font-size:16px">${r.emoji}</span>
+              <div style="flex:1">
+                <div style="font-size:14px;font-weight:800">${r.name}</div>
+                ${arch.fcLog ? (()=>{const log=arch.fcLog.find(l=>l.name===r.name&&!l.isChampion);return log?`<div style="font-size:11px;color:var(--green);margin-top:2px">Bônus: +${log.total} FC</div>`:''})() : ''}
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:20px;font-weight:800;color:var(--gold)">${r.fitcoins}</div>
+                <div style="font-size:10px;color:var(--muted2)">FitCoins</div>
+              </div>
+            </div>
+          </div>`).join('') : ''}`;
+      return;
+    }
+
     el.innerHTML=`
       <div class="shdr"><div class="sdot"></div><h3>Visão Geral — ${monthLabel(mk)}</h3><div class="sbadge">Dia ${de}</div></div>
+      <div style="margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap">
+        ${allOvMonths.map(m=>`<button onclick="window._adminOvMes='${m}';renderAdminContent()" style="padding:6px 14px;border-radius:20px;border:1px solid ${m===ovMk?'var(--gold)':'#333'};background:${m===ovMk?'#1C1800':'var(--card)'};color:${m===ovMk?'var(--gold)':'var(--muted2)'};font-size:12px;font-weight:700;cursor:pointer">${monthLabel(m)}</button>`).join('')}
+      </div>
       ${S.players.map(p=>{
         const pid=p.id;
         const pIndQuota=getPlayerIndQuota(pid);
