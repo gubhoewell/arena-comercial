@@ -394,7 +394,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 const DEF = {
   dailyQuota:3100, monthQuota:93000, superacao:128000, indQuota:31000,
   dailyTargets:{ abordagens:30, leadsQuentes:6, indicacoes:10, aulaExp:2 },
-  monthTargets:{ abordagens:660, leadsQuentes:132, indicacoes:220, aulaExp:44, vendas:30 },
+  monthTargets:{ abordagens:660, leadsQuentes:132, indicacoes:220, aulaExp:44, vendas:30, renovUpgrade:5, plano72:3, campanhas:10, postagens:20 },
 };
 
 // Default FC rules — all editable in admin
@@ -1403,11 +1403,11 @@ function renderPainel(){
   const verifiedMetrics=[
     {key:'qtdMatriculas',        label:'Matrículas',        mt:cfg.monthTargets.vendas,  e:'🎓'},
     {key:'qtdRenovacoes',        label:'Renovações',        mt:cfg.monthTargets.vendas,  e:'🔄'},
-    {key:'qtdRenovacoesUpgrade', label:'Renov. c/ Upgrade', mt:5,                        e:'⬆️'},
-    {key:'qtdPlano72',           label:'Plano 72 créditos', mt:3,                        e:'🟡'},
-    {key:'aulaExp',              label:'Aulas Exp.',        mt:cfg.monthTargets.aulaExp, e:'🎾'},
-    {key:'qtdCampanhas',    label:'Campanhas',      mt:10,                       e:'📣'},
-    {key:'qtdPostagens',    label:'Postagens',      mt:20,                       e:'📸'},
+    {key:'qtdRenovacoesUpgrade', label:'Renov. c/ Upgrade', mt:cfg.monthTargets.renovUpgrade??5,  e:'⬆️'},
+    {key:'qtdPlano72',           label:'Plano 72 créditos', mt:cfg.monthTargets.plano72??3,       e:'🟡'},
+    {key:'aulaExp',              label:'Aulas Exp.',        mt:cfg.monthTargets.aulaExp,          e:'🎾'},
+    {key:'qtdCampanhas',         label:'Campanhas',         mt:cfg.monthTargets.campanhas??10,    e:'📣'},
+    {key:'qtdPostagens',         label:'Postagens',         mt:cfg.monthTargets.postagens??20,    e:'📸'},
   ];
   const activityMetrics=[
     {key:'abordagens',   label:'Abordagens',   mt:cfg.monthTargets.abordagens},
@@ -2084,7 +2084,18 @@ function renderAdminContent(){
           <div><label class="af-label">Indicações/mês</label><input class="af-input" type="number" id="ac_mi" value="${cfg.monthTargets.indicacoes}"></div>
           <div><label class="af-label">Aulas Exp./mês</label><input class="af-input" type="number" id="ac_ma" value="${cfg.monthTargets.aulaExp}"></div>
         </div>
-        <div class="af-group"><label class="af-label">Vendas/mês</label><input class="af-input" type="number" id="ac_mv" value="${cfg.monthTargets.vendas}"></div>
+        <div class="af-row">
+          <div><label class="af-label">Matrículas/mês</label><input class="af-input" type="number" id="ac_mv" value="${cfg.monthTargets.vendas}"></div>
+          <div><label class="af-label">Renovações/mês</label><input class="af-input" type="number" id="ac_mre" value="${cfg.monthTargets.vendas}"></div>
+        </div>
+        <div class="af-row">
+          <div><label class="af-label">Renov. c/ Upgrade/mês</label><input class="af-input" type="number" id="ac_mru" value="${cfg.monthTargets.renovUpgrade??5}"></div>
+          <div><label class="af-label">Plano 72/mês</label><input class="af-input" type="number" id="ac_mp72" value="${cfg.monthTargets.plano72??3}"></div>
+        </div>
+        <div class="af-row">
+          <div><label class="af-label">Campanhas/mês</label><input class="af-input" type="number" id="ac_mca" value="${cfg.monthTargets.campanhas??10}"></div>
+          <div><label class="af-label">Postagens/mês</label><input class="af-input" type="number" id="ac_mpo" value="${cfg.monthTargets.postagens??20}"></div>
+        </div>
       </div>
       <button class="btn-save" onclick="saveMesConfig()">💾 Salvar</button>
       <div style="margin-top:20px;padding-top:16px;border-top:1px solid #2A2A2A">
@@ -2412,7 +2423,7 @@ function saveMesConfig(){
   S.players.forEach(p=>{ const v=parseFloat(document.getElementById(`ac_ind_${p.id}`)?.value); if(v>0) p.indQuota=v; });
   c.superacao =parseFloat(document.getElementById('ac_sup').value)  ||DEF.superacao;
   c.dailyTargets={ abordagens:parseInt(document.getElementById('ac_tab').value)||DEF.dailyTargets.abordagens, leadsQuentes:parseInt(document.getElementById('ac_tlq').value)||DEF.dailyTargets.leadsQuentes, indicacoes:parseInt(document.getElementById('ac_ti').value)||DEF.dailyTargets.indicacoes, aulaExp:parseInt(document.getElementById('ac_ta').value)||DEF.dailyTargets.aulaExp };
-  c.monthTargets={ abordagens:parseInt(document.getElementById('ac_mab').value)||DEF.monthTargets.abordagens, leadsQuentes:parseInt(document.getElementById('ac_mlq').value)||DEF.monthTargets.leadsQuentes, indicacoes:parseInt(document.getElementById('ac_mi').value)||DEF.monthTargets.indicacoes, aulaExp:parseInt(document.getElementById('ac_ma').value)||DEF.monthTargets.aulaExp, vendas:parseInt(document.getElementById('ac_mv').value)||DEF.monthTargets.vendas };
+  c.monthTargets={ abordagens:parseInt(document.getElementById('ac_mab').value)||DEF.monthTargets.abordagens, leadsQuentes:parseInt(document.getElementById('ac_mlq').value)||DEF.monthTargets.leadsQuentes, indicacoes:parseInt(document.getElementById('ac_mi').value)||DEF.monthTargets.indicacoes, aulaExp:parseInt(document.getElementById('ac_ma').value)||DEF.monthTargets.aulaExp, vendas:parseInt(document.getElementById('ac_mv').value)||DEF.monthTargets.vendas, renovUpgrade:parseInt(document.getElementById('ac_mru').value)||5, plano72:parseInt(document.getElementById('ac_mp72').value)||3, campanhas:parseInt(document.getElementById('ac_mca').value)||10, postagens:parseInt(document.getElementById('ac_mpo').value)||20 };
   save(); showToast('✅ Configurações salvas!'); renderAll();
 }
 
