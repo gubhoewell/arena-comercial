@@ -1965,12 +1965,18 @@ function renderAdminContent(){
         <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Cotas em R$</p>
         <div class="af-row">
           <div><label class="af-label">Cota Diária Time</label><input class="af-input" type="number" id="ac_daily" value="${cfg.dailyQuota}"></div>
-          <div><label class="af-label">Cota Individual</label><input class="af-input" type="number" id="ac_ind" value="${cfg.indQuota}"></div>
+          <div><label class="af-label">Cota Time Mês</label><input class="af-input" type="number" id="ac_month" value="${cfg.monthQuota}"></div>
         </div>
         <div class="af-row">
-          <div><label class="af-label">Cota Time Mês</label><input class="af-input" type="number" id="ac_month" value="${cfg.monthQuota}"></div>
           <div><label class="af-label">Meta Superação</label><input class="af-input" type="number" id="ac_sup" value="${cfg.superacao}"></div>
         </div>
+        <p style="font-size:12px;color:var(--muted2);margin:14px 0 10px">Cotas individuais por vendedora</p>
+        ${S.players.map(p=>`
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:18px">${p.emoji}</span>
+          <span style="font-size:13px;font-weight:600;min-width:60px">${p.name}</span>
+          <input class="af-input" type="number" id="ac_ind_${p.id}" value="${p.indQuota||getPlayerIndQuota(p.id)}" style="flex:1">
+        </div>`).join('')}
       </div>
       <div class="card">
         <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Metas diárias (atividade)</p>
@@ -2303,8 +2309,9 @@ function saveMesConfig(){
   if(!S.monthConfig[mk]) S.monthConfig[mk]={};
   const c=S.monthConfig[mk];
   c.dailyQuota=parseFloat(document.getElementById('ac_daily').value)||DEF.dailyQuota;
-  c.indQuota  =parseFloat(document.getElementById('ac_ind').value)  ||DEF.indQuota;
   c.monthQuota=parseFloat(document.getElementById('ac_month').value)||DEF.monthQuota;
+  // salva cota individual por jogadora
+  S.players.forEach(p=>{ const v=parseFloat(document.getElementById(`ac_ind_${p.id}`)?.value); if(v>0) p.indQuota=v; });
   c.superacao =parseFloat(document.getElementById('ac_sup').value)  ||DEF.superacao;
   c.dailyTargets={ abordagens:parseInt(document.getElementById('ac_tab').value)||DEF.dailyTargets.abordagens, leadsQuentes:parseInt(document.getElementById('ac_tlq').value)||DEF.dailyTargets.leadsQuentes, indicacoes:parseInt(document.getElementById('ac_ti').value)||DEF.dailyTargets.indicacoes, aulaExp:parseInt(document.getElementById('ac_ta').value)||DEF.dailyTargets.aulaExp };
   c.monthTargets={ abordagens:parseInt(document.getElementById('ac_mab').value)||DEF.monthTargets.abordagens, leadsQuentes:parseInt(document.getElementById('ac_mlq').value)||DEF.monthTargets.leadsQuentes, indicacoes:parseInt(document.getElementById('ac_mi').value)||DEF.monthTargets.indicacoes, aulaExp:parseInt(document.getElementById('ac_ma').value)||DEF.monthTargets.aulaExp, vendas:parseInt(document.getElementById('ac_mv').value)||DEF.monthTargets.vendas };
