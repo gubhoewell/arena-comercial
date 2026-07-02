@@ -2955,14 +2955,12 @@ function finalizeCFOLogin(){
 
 function showCFOPanel(){
   document.getElementById('cfoPanel').style.display = 'block';
-  document.getElementById('appShell').style.display = 'none';
   renderCFOView();
 }
 
 function hideCFOPanel(){
   cfoUnlocked = false;
   document.getElementById('cfoPanel').style.display = 'none';
-  document.getElementById('appShell').style.display = 'block';
   showWelcomeScreen();
 }
 
