@@ -417,6 +417,7 @@ const DEF_FC = {
   cotaIndMes:    100, // cota individual mensal
   cotaTimeMes:   80,  // cota time mensal
   superacao:     150, // meta superação
+  saqueRate:     10,  // centavos por FC no saque (R$0,10/FC padrão → saqueRate/100 = R$)
 };
 
 const DEF_RULES = {
@@ -443,6 +444,7 @@ const FC_RULES_META = [
   { key:'cotaIndMes',       label:'Cota individual mensal',     sub:'Vendedora bate meta mensal',                unit:'FC/mês'     },
   { key:'cotaTimeMes',      label:'Cota time mensal',           sub:'Time bate R$93k no mês',                    unit:'FC/mês'     },
   { key:'superacao',        label:'Meta de superação',          sub:'Time bate R$128k no mês',                   unit:'FC/mês'     },
+  { key:'saqueRate',        label:'Taxa de saque em dinheiro',  sub:'Centavos por FC (10 = R$0,10/FC)',          unit:'centavos/FC'},
 ];
 
 const LEVELS = [
@@ -1153,6 +1155,29 @@ function resgate(itemId){
   save(); renderAll(); showToast('Resgate solicitado! ✅');
 }
 
+function resgateSaque(){
+  const pid=S.currentPlayer, p=S.players[pid];
+  const fc_=p.fitcoins||0;
+  const rate=fc('saqueRate')/100; // R$ por FC
+  const minFC=100;
+  if(fc_<minFC){ showToast(`Mínimo de ${minFC} FC para saque 😅`,true); return; }
+  // Só 1 saque pendente por vez
+  if(S.resgates.some(r=>r.pid===pid&&r.type==='saque'&&r.status==='pending')){
+    showToast('Você já tem um saque pendente ⏳',true); return;
+  }
+  const maxMultiple=Math.floor(fc_/minFC)*minFC;
+  const qtd=parseInt(prompt(`Quantos FitCoins deseja sacar?\nMínimo: ${minFC} FC | Disponível: ${fc_} FC\nValor em R$: R$${(maxMultiple*rate).toFixed(2)} máximo\n\n(Digite múltiplos de ${minFC})`));
+  if(!qtd||isNaN(qtd)) return;
+  const fcQtd=Math.floor(qtd/minFC)*minFC;
+  if(fcQtd<minFC){ showToast(`Mínimo ${minFC} FC`,true); return; }
+  if(fcQtd>fc_){ showToast('FitCoins insuficientes 😅',true); return; }
+  const valor=(fcQtd*rate).toFixed(2);
+  if(!confirm(`Solicitar saque de ${fcQtd} FC = R$${valor}?\nO pagamento será feito via Pix após aprovação.`)) return;
+  p.fitcoins=fc_-fcQtd;
+  S.resgates.push({pid,type:'saque',itemId:'__saque__',itemName:`💵 Saque em Dinheiro`,cost:fcQtd,valorReais:parseFloat(valor),date:today(),status:'pending'});
+  save(); renderAll(); showToast('Saque solicitado! 💵');
+}
+
 // ═══════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════
@@ -1613,12 +1638,34 @@ function renderLoja(){
     </div>`;
   }).join('');
   const myRes=S.resgates.filter(r=>r.pid===pid).slice().reverse();
+  const saquePend=S.resgates.some(r=>r.pid===pid&&r.type==='saque'&&r.status==='pending');
+  const rate=fc('saqueRate')/100;
+  const saqueCard=`
+    <div style="margin-bottom:20px">
+      <div class="tier-badge" style="background:linear-gradient(90deg,#1a3a1a,#2a5a2a);color:#4ade80;border:1px solid #2a5a2a">💵 Saque em Dinheiro · 1x por mês</div>
+      <div class="sitem ${saquePend?'pend':fc_>=100?'can':'cant'}" style="border-color:${saquePend?'var(--amber)':fc_>=100?'#2a5a2a':'#2A2A2A'}">
+        <div class="si-ico">💵</div>
+        <div class="si-info">
+          <div class="si-name">Saque em Dinheiro</div>
+          <div class="si-partner">via Pix · aprovado pelo gestor</div>
+          <div class="si-desc">R$${rate.toFixed(2)} por FC · mín. 100 FC · Você escolhe quanto sacar</div>
+        </div>
+        <div class="si-right">
+          <div class="si-cost" style="color:#4ade80">${(fc_*rate).toFixed(2)}</div>
+          <div class="si-cost-l">R$ máx.</div>
+          <button class="btn-resgate${saquePend?' pend':''}" onclick="resgateSaque()" ${(fc_<100||saquePend)?'disabled':''} style="${fc_>=100&&!saquePend?'background:#4ade80;color:#000':''}">
+            ${saquePend?'⏳ Pendente':fc_>=100?'Sacar':'🔒 Mín. 100 FC'}
+          </button>
+        </div>
+      </div>
+    </div>`;
   document.getElementById('tab-loja').innerHTML=`
     <div class="fc-bal">
       <div><div class="fcb-l">Seu saldo</div><div class="fcb-v">${fc_} <small>FitCoins</small></div></div>
       ${lvBadge(fc_)}
     </div>
     <div class="shdr"><div class="sdot"></div><h3>Catálogo</h3><div class="sbadge">Parceiros</div></div>
+    ${saqueCard}
     ${storeHtml}
     <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Meus Resgates</h3></div>
     ${myRes.length?myRes.map(r=>`<div class="res-item">
@@ -2078,7 +2125,7 @@ function renderAdminContent(){
         const p=S.players[r.pid], gi=S.resgates.findIndex(x=>x===r);
         return `<div style="background:var(--card2);border:1px solid var(--amber);border-radius:var(--rs);padding:12px;margin-bottom:8px">
           <div style="font-size:13px;font-weight:700;margin-bottom:8px">${p?.emoji} ${p?.name||'?'} — ${r.itemName}</div>
-          <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">${fmtDate(r.date)} · ${r.cost} FC</div>
+          <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">${fmtDate(r.date)} · ${r.cost} FC${r.type==='saque'?` <span style="color:#4ade80;font-weight:700">· Pix R$${r.valorReais?.toFixed(2)}</span>`:''}</div>
           <div style="display:flex;gap:8px">
             <button onclick="approveResgate(${gi})" style="flex:1;background:var(--green);color:#000;border:none;padding:9px;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer">✅ Aprovar</button>
             <button onclick="rejectResgate(${gi})"  style="flex:1;background:var(--red);color:#fff;border:none;padding:9px;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer">✕ Rejeitar</button>
@@ -2089,7 +2136,7 @@ function renderAdminContent(){
       <div class="shdr" style="margin-top:8px"><div class="sdot"></div><h3>Histórico</h3></div>
       ${S.resgates.filter(r=>r.status!=='pending').slice().reverse().slice(0,20).map(r=>{
         const p=S.players[r.pid];
-        return `<div class="res-item"><div class="res-name">${p?.emoji} ${p?.name||'?'} — ${r.itemName}</div><div><div class="res-date">${fmtDate(r.date)}</div><div class="${r.status==='approved'?'badge-ok':'badge-pend'}">${r.status==='approved'?'✅ Aprovado':'✕ Rejeitado'}</div></div></div>`;
+        return `<div class="res-item"><div class="res-name">${p?.emoji} ${p?.name||'?'} — ${r.itemName}${r.type==='saque'?` <span style="color:#4ade80">R$${r.valorReais?.toFixed(2)}</span>`:''}</div><div><div class="res-date">${fmtDate(r.date)}</div><div class="${r.status==='approved'?'badge-ok':'badge-pend'}">${r.status==='approved'?'✅ Aprovado':'✕ Rejeitado'}</div></div></div>`;
       }).join('')}`;
 
   } else if(currentAdminTab==='historico'){
