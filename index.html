@@ -1155,6 +1155,17 @@ function resgate(itemId){
   save(); renderAll(); showToast('Resgate solicitado! ✅');
 }
 
+function requestBonusCota(){
+  const pid=S.currentPlayer, p=S.players[pid];
+  const pIndQuota=getPlayerIndQuota(pid);
+  if(monthRev(pid)<pIndQuota){ showToast('Você ainda não bateu a cota individual 😅',true); return; }
+  if(S.resgates.some(r=>r.pid===pid&&r.type==='bonus_cota'&&r.date.startsWith(monthKey()))){
+    showToast('Bônus já solicitado este mês ⏳',true); return;
+  }
+  if(!confirm('Solicitar Bônus de Cota R$500,00?\nO pagamento será feito via Pix após aprovação do gestor.')) return;
+  S.resgates.push({pid,type:'bonus_cota',itemId:'__bonus_cota__',itemName:'💰 Bônus de Cota Individual',cost:0,valorReais:500,date:today(),status:'pending'});
+  save(); renderAll(); showToast('Bônus solicitado! 💰');
+}
 function resgateSaque(){
   const pid=S.currentPlayer, p=S.players[pid];
   const fc_=p.fitcoins||0;
@@ -1640,6 +1651,29 @@ function renderLoja(){
   const myRes=S.resgates.filter(r=>r.pid===pid).slice().reverse();
   const saquePend=S.resgates.some(r=>r.pid===pid&&r.type==='saque'&&r.status==='pending');
   const rate=fc('saqueRate')/100;
+  const pIndQuota=getPlayerIndQuota(pid);
+  const bateuCota=monthRev(pid)>=pIndQuota;
+  const bonusPend=S.resgates.some(r=>r.pid===pid&&r.type==='bonus_cota'&&r.date.startsWith(monthKey()));
+  const bonusAprov=S.resgates.some(r=>r.pid===pid&&r.type==='bonus_cota'&&r.date.startsWith(monthKey())&&r.status==='approved');
+  const bonusCard=`
+    <div style="margin-bottom:20px">
+      <div class="tier-badge" style="background:linear-gradient(90deg,#1a2a0a,#2a4a10);color:#a3e635;border:1px solid #3a6a15">🏆 Bônus de Cota Individual · R$500 fixo</div>
+      <div class="sitem ${bonusPend?'pend':bateuCota?'can':'cant'}" style="border-color:${bonusAprov?'var(--green)':bonusPend?'var(--amber)':bateuCota?'#3a6a15':'#2A2A2A'}">
+        <div class="si-ico">💰</div>
+        <div class="si-info">
+          <div class="si-name">Bônus de Cota Individual</div>
+          <div class="si-partner">via Pix · aprovado pelo gestor</div>
+          <div class="si-desc">${bateuCota?'✅ Você bateu sua cota de '+fmtMoney(pIndQuota)+'!':'Bata sua cota de '+fmtMoney(pIndQuota)+' para desbloquear'}</div>
+        </div>
+        <div class="si-right">
+          <div class="si-cost" style="color:#a3e635">500,00</div>
+          <div class="si-cost-l">R$ fixo</div>
+          <button class="btn-resgate${bonusPend?' pend':''}" onclick="requestBonusCota()" ${(!bateuCota||bonusPend)?'disabled':''} style="${bateuCota&&!bonusPend?'background:#a3e635;color:#000':''}">
+            ${bonusAprov?'✅ Aprovado':bonusPend?'⏳ Pendente':bateuCota?'Solicitar':'🔒'}
+          </button>
+        </div>
+      </div>
+    </div>`;
   const saqueCard=`
     <div style="margin-bottom:20px">
       <div class="tier-badge" style="background:linear-gradient(90deg,#1a3a1a,#2a5a2a);color:#4ade80;border:1px solid #2a5a2a">💵 Saque em Dinheiro · 1x por mês</div>
@@ -1665,6 +1699,7 @@ function renderLoja(){
       ${lvBadge(fc_)}
     </div>
     <div class="shdr"><div class="sdot"></div><h3>Catálogo</h3><div class="sbadge">Parceiros</div></div>
+    ${bonusCard}
     ${saqueCard}
     ${storeHtml}
     <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Meus Resgates</h3></div>
@@ -2131,7 +2166,7 @@ function renderAdminContent(){
         const p=S.players[r.pid], gi=S.resgates.findIndex(x=>x===r);
         return `<div style="background:var(--card2);border:1px solid var(--amber);border-radius:var(--rs);padding:12px;margin-bottom:8px">
           <div style="font-size:13px;font-weight:700;margin-bottom:8px">${p?.emoji} ${p?.name||'?'} — ${r.itemName}</div>
-          <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">${fmtDate(r.date)} · ${r.cost} FC${r.type==='saque'?` <span style="color:#4ade80;font-weight:700">· Pix R$${r.valorReais?.toFixed(2)}</span>`:''}</div>
+          <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">${fmtDate(r.date)}${r.type==='saque'||r.type==='bonus_cota'?` <span style="color:#4ade80;font-weight:700">· Pix R$${r.valorReais?.toFixed(2)}</span>`:` · ${r.cost} FC`}</div>
           <div style="display:flex;gap:8px">
             <button onclick="approveResgate(${gi})" style="flex:1;background:var(--green);color:#000;border:none;padding:9px;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer">✅ Aprovar</button>
             <button onclick="rejectResgate(${gi})"  style="flex:1;background:var(--red);color:#fff;border:none;padding:9px;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer">✕ Rejeitar</button>
