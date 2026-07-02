@@ -375,6 +375,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <div class="toast" id="toast"></div>
 
+<!-- CFO PANEL -->
+<div id="cfoPanel" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:2000;overflow-y:auto">
+  <div style="max-width:600px;margin:0 auto;padding:16px 14px 40px">
+    <div id="cfoContent"></div>
+  </div>
+</div>
+
 <!-- ADMIN EDIT REPORT MODAL -->
 <div id="adminEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:3000;overflow-y:auto;padding:20px">
   <div style="background:var(--card);border:1px solid #333;border-radius:var(--r);max-width:480px;margin:0 auto;padding:20px">
@@ -497,8 +504,10 @@ let S = {
   adjNotifs:      {},
   monthChampion:  null,  // { pid, name, emoji, month } — campeã do mês anterior
   pins:           { 0:'', 1:'', 2:'' },  // PINs isolados — nunca são afetados pelo merge de players
+  cfoPin:         '',
 };
 let adminUnlocked = false;
+let cfoUnlocked = false;
 let currentAdminTab = 'overview';
 let reportDate = null; // null = usa today()
 
@@ -563,7 +572,16 @@ function showWelcomeScreen(){
         <div class="welcome-card-pin">${getPlayerPin(i) ? '🔒 PIN configurado' : '⚠️ Sem PIN — entre direto'}</div>
       </div>
       <div class="welcome-card-arrow">›</div>
-    </button>`).join('');
+    </button>`).join('')
+  + `<button class="welcome-card" onclick="welcomeSelectCFO()" style="border-color:#1e3a5f;background:linear-gradient(135deg,#050f1e,#0a1f3a)">
+      <div class="welcome-card-emoji">📊</div>
+      <div class="welcome-card-info">
+        <div class="welcome-card-name" style="color:#60a5fa">CFO</div>
+        <div class="welcome-card-sched">Benedito — Visão gerencial</div>
+        <div class="welcome-card-pin" style="color:#60a5fa">${S.cfoPin ? '🔒 PIN configurado' : '⚠️ Sem PIN — entre direto'}</div>
+      </div>
+      <div class="welcome-card-arrow" style="color:#60a5fa">›</div>
+    </button>`;
   document.getElementById('welcomeScreen').classList.add('show');
 }
 
@@ -650,6 +668,7 @@ function save(){
     missions:       S.missions       || {},
     gameRules:      S.gameRules      || {},
     customTriggers: S.customTriggers || [],
+    cfoPin:         S.cfoPin         || '',
   };
   ROOT.set(payload)
     .catch(e=>{ console.error('Firebase write error:',e); showToast('Erro ao salvar ☁️',true); });
@@ -689,6 +708,7 @@ function mergeFirebaseData(data){
   if(!S.missions)                 S.missions    = {};
   if(!S.gameRules)                S.gameRules   = {};
   if(!S.customTriggers)          S.customTriggers = [];
+  if(!S.cfoPin)                  S.cfoPin = '';
 }
 
 // PINs ficam em S.pins separado — nunca misturado com player data
@@ -2402,6 +2422,14 @@ function renderAdminContent(){
         <div class="af-group"><label class="af-label">Confirmar</label><input class="af-input" type="password" id="cfg_pw2" placeholder="Repita"></div>
         <button class="btn-save" onclick="changePassword()">🔐 Alterar Senha</button>
       </div>
+      <div class="shdr"><div class="sdot"></div><h3>Acesso CFO</h3></div>
+      <div class="card">
+        <p style="font-size:12px;color:var(--muted2);margin-bottom:12px">PIN de 4 dígitos para Benedito entrar na visão gerencial (somente leitura).</p>
+        <div class="af-row">
+          <div><label class="af-label">PIN do CFO</label><input class="af-input" type="tel" id="cfg_cfo_pin" maxlength="4" placeholder="4 dígitos" value="${S.cfoPin||''}" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)" style="letter-spacing:8px;font-size:20px;text-align:center"></div>
+        </div>
+        <button class="btn-save" onclick="saveCfoPin()">💾 Salvar PIN CFO</button>
+      </div>
       <div class="card" style="border-color:#3A1212;margin-top:8px">
         <p style="font-size:12px;color:var(--muted2);margin-bottom:12px">Zona de risco</p>
         <button class="btn-danger" style="width:100%;margin-bottom:8px" onclick="resetDay()">🔄 Resetar Reports de Hoje</button>
@@ -2745,6 +2773,7 @@ function clearPin(i){
   setTimeout(()=>renderAdminContent(), 300);
 }
 function changePassword(){ const p1=document.getElementById('cfg_pw1').value.trim(), p2=document.getElementById('cfg_pw2').value.trim(); if(!p1){ showToast('Digite uma senha',true); return; } if(p1!==p2){ showToast('Senhas não coincidem',true); return; } S.adminPassword=p1; save(); showToast('🔐 Senha alterada!'); }
+function saveCfoPin(){ const pin=document.getElementById('cfg_cfo_pin').value.trim(); if(pin&&pin.length!==4){ showToast('PIN deve ter 4 dígitos',true); return; } S.cfoPin=pin; save(); showToast(pin?'📊 PIN do CFO salvo!':'PIN do CFO removido.'); }
 function resetDay(){
   if(!confirm('Apagar reports de hoje? Os FitCoins do dia também serão devolvidos.')) return;
   S.players.forEach(p=>{
@@ -2812,6 +2841,7 @@ function goTab(name){
 let _pinTarget      = 0;
 let _pinCurrent     = '';
 let _pinFromWelcome = false;
+let _pinMode        = 'player'; // 'player' | 'cfo'
 
 function selectPlayer(i){
   const pin = getPlayerPin(i);
@@ -2868,6 +2898,17 @@ function updatePinDots(val, state=''){
 }
 
 function checkPin(){
+  if(_pinMode === 'cfo'){
+    if(_pinCurrent === S.cfoPin){
+      closePinModal();
+      finalizeCFOLogin();
+    } else {
+      updatePinDots('1234','error');
+      document.getElementById('pinError').textContent = 'PIN incorreto — tente novamente';
+      setTimeout(()=>{ _pinCurrent=''; updatePinDots(''); document.getElementById('pinError').textContent=''; }, 900);
+    }
+    return;
+  }
   const correct = getPlayerPin(_pinTarget);
   if(_pinCurrent === correct){
     closePinModal();
@@ -2887,6 +2928,160 @@ function checkPin(){
       document.getElementById('pinError').textContent = '';
     }, 900);
   }
+}
+
+function welcomeSelectCFO(){
+  if(!S.cfoPin){
+    finalizeCFOLogin();
+    return;
+  }
+  _pinMode = 'cfo';
+  _pinCurrent = '';
+  _pinFromWelcome = true;
+  document.getElementById('pinAvatar').textContent     = '📊';
+  document.getElementById('pinPlayerName').textContent = 'CFO — Benedito';
+  document.getElementById('pinError').textContent      = '';
+  updatePinDots('');
+  document.getElementById('pinModal').classList.add('show');
+}
+
+function finalizeCFOLogin(){
+  _pinMode = 'player';
+  cfoUnlocked = true;
+  hideWelcomeScreen();
+  showCFOPanel();
+  showToast('Bem-vindo, Benedito! 📊');
+}
+
+function showCFOPanel(){
+  document.getElementById('cfoPanel').style.display = 'block';
+  document.getElementById('appShell').style.display = 'none';
+  renderCFOView();
+}
+
+function hideCFOPanel(){
+  cfoUnlocked = false;
+  document.getElementById('cfoPanel').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  showWelcomeScreen();
+}
+
+function renderCFOView(){
+  const mk = monthKey();
+  const cfg = curCfg();
+  const de = daysElapsed();
+  const todayRev = S.players.reduce((s,p)=>{ const r=todayReport(p.id); return s+(r?repTotal(r):0); },0);
+  const dailyQuota = effectiveQuota();
+  const dailyPct = Math.min(100,Math.round((todayRev/dailyQuota)*100));
+  const totalMRev = totalTeamMonthRev();
+  const monthPct = Math.min(100,Math.round((totalMRev/cfg.monthQuota)*100));
+
+  // ranking do dia
+  const rankDay = [...S.players].map(p=>({ p, rev:repTotal(todayReport(p.id)||{}), fc:(todayReport(p.id)||{}).fcEarned||0 })).sort((a,b)=>b.rev-a.rev);
+  // ranking do mês
+  const rankMonth = [...S.players].map(p=>({ p, rev:monthRev(p.id), fc:p.fitcoins||0 })).sort((a,b)=>b.fc-a.fc);
+
+  document.getElementById('cfoContent').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div style="font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:1px">Visão CFO — ${monthLabel(mk)}</div>
+        <div style="font-size:18px;font-weight:800;color:#60a5fa">📊 Benedito</div>
+      </div>
+      <button onclick="hideCFOPanel()" style="background:#1e3a5f;border:1px solid #2d5a8f;color:#60a5fa;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer">← Sair</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="card" style="border-color:${dailyPct>=100?'var(--green)':'#2A2A2A'}">
+        <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">📅 Receita hoje · Dia ${de}</div>
+        <div style="font-size:24px;font-weight:800;color:${dailyPct>=100?'var(--green)':'var(--text)'}">${fmtMoneyDec(todayRev)}</div>
+        <div style="font-size:11px;color:var(--muted2);margin:4px 0 6px">Cota: ${fmtMoney(dailyQuota)} · ${dailyPct}%</div>
+        ${pbar(dailyPct,'6px')}
+        <div style="font-size:11px;color:var(--muted2);margin-top:4px">${dailyPct>=100?'✅ Cota do dia batida!':'Faltam '+fmtMoneyDec(dailyQuota-todayRev)}</div>
+      </div>
+      <div class="card" style="border-color:${monthPct>=100?'var(--green)':'#2A2A2A'}">
+        <div style="font-size:11px;color:var(--muted2);margin-bottom:4px">📆 Receita do mês</div>
+        <div style="font-size:24px;font-weight:800;color:${monthPct>=100?'var(--green)':'var(--text)'}">${fmtMoneyDec(totalMRev)}</div>
+        <div style="font-size:11px;color:var(--muted2);margin:4px 0 6px">Meta: ${fmtMoney(cfg.monthQuota)} · ${monthPct}%</div>
+        ${pbar(monthPct,'6px')}
+        <div style="font-size:11px;color:var(--muted2);margin-top:4px">${monthPct>=100?'✅ Meta batida!':'Faltam '+fmtMoneyDec(cfg.monthQuota-totalMRev)+' · Proj: '+fmtMoney(proj(totalMRev,de))}</div>
+      </div>
+    </div>
+
+    <div class="shdr"><div class="sdot"></div><h3>Report de Hoje</h3></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      ${S.players.map(p=>{ const r=todayReport(p.id); return `<div class="card" style="text-align:center;padding:12px;border-color:${r?'#166534':'#3A1200'}">
+        <div style="font-size:26px">${p.emoji}</div>
+        <div style="font-size:13px;font-weight:700;margin:6px 0 4px">${p.name}</div>
+        <div style="font-size:11px;color:${r?'var(--green)':'var(--amber)'};margin-bottom:4px">${r?'✅ Reportou':'⚠️ Pendente'}</div>
+        ${r?`<div style="font-size:16px;font-weight:800;color:var(--green)">${fmtMoneyDec(repTotal(r))}</div>
+        <div style="font-size:10px;color:var(--gold)">+${r.fcEarned||0} FC</div>`:''}
+      </div>`; }).join('')}
+    </div>
+
+    <div class="shdr"><div class="sdot"></div><h3>Ranking do Dia</h3></div>
+    <div style="margin-bottom:14px">
+      ${rankDay.map((x,i)=>`<div class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:6px">
+        <span style="font-size:20px">${['🥇','🥈','🥉'][i]||`#${i+1}`}</span>
+        <span style="font-size:20px">${x.p.emoji}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${x.p.name}</div>
+          <div style="font-size:11px;color:var(--muted2)">${fmtMoneyDec(x.rev)} · +${x.fc} FC hoje</div>
+        </div>
+        <div style="font-size:18px;font-weight:800;color:var(--green)">${fmtMoneyDec(x.rev)}</div>
+      </div>`).join('')}
+    </div>
+
+    <div class="shdr"><div class="sdot"></div><h3>Ranking do Mês — FitCoins</h3></div>
+    <div style="margin-bottom:14px">
+      ${rankMonth.map((x,i)=>`<div class="card" style="display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:6px;${i===0?'border-color:var(--gold)':''}">
+        <span style="font-size:20px">${['🥇','🥈','🥉'][i]||`#${i+1}`}</span>
+        <span style="font-size:20px">${x.p.emoji}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${x.p.name}</div>
+          <div style="font-size:11px;color:var(--muted2)">${fmtMoneyDec(x.rev)} no mês · ${getLevel(x.fc).ico} ${getLevel(x.fc).name}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:800;color:var(--gold)">${x.fc}</div>
+          <div style="font-size:10px;color:var(--muted2)">FC</div>
+        </div>
+      </div>`).join('')}
+    </div>
+
+    <div class="shdr"><div class="sdot"></div><h3>Cards Individuais</h3></div>
+    ${S.players.map(p=>{
+      const pid=p.id, pIndQuota=getPlayerIndQuota(pid);
+      const mRev=monthRev(pid), indPct=Math.min(100,Math.round((mRev/pIndQuota)*100));
+      const ma=monthStat(pid,'qtdMatriculas'), re=monthStat(pid,'qtdRenovacoes'), ru=monthStat(pid,'qtdRenovacoesUpgrade');
+      return `<div class="card" style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #242424">
+          <span style="font-size:26px">${p.emoji}</span>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:800">${p.name}</div>
+            <div style="margin-top:4px">${lvBadge(p.fitcoins||0)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:20px;font-weight:800;color:var(--gold)">${p.fitcoins||0}</div>
+            <div style="font-size:10px;color:var(--muted2)">FitCoins</div>
+          </div>
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:700">🎯 Cota Individual</span>
+            <span style="font-size:12px;font-weight:800;color:${indPct>=100?'var(--green)':indPct>=50?'var(--amber)':'var(--red)'}">${indPct}% · ${fmtMoneyDec(mRev)}</span>
+          </div>
+          ${pbar(indPct,'6px')}
+          <div style="font-size:11px;color:var(--muted2);margin-top:3px">${indPct>=100?'✅ Cota batida!':'Faltam '+fmtMoney(pIndQuota-mRev)} de ${fmtMoney(pIndQuota)}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+          <div class="mstat"><div class="mstat-v cv-green">${ma}</div><div class="mstat-l">🎓 Matrículas</div></div>
+          <div class="mstat"><div class="mstat-v cv-amber">${re}</div><div class="mstat-l">🔄 Renov.</div></div>
+          <div class="mstat"><div class="mstat-v cv-gold">${ru}</div><div class="mstat-l">⬆️ Upgrade</div></div>
+        </div>
+      </div>`;
+    }).join('')}
+
+    <div style="text-align:center;padding:20px 0;color:var(--muted);font-size:11px">Atualizado em tempo real · Somente leitura</div>
+  `;
 }
 
 function selectReportDate(dateStr){
