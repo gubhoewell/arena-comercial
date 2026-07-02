@@ -2287,6 +2287,19 @@ function renderAdminContent(){
         }).join('')}
         <button class="btn-save" onclick="savePlayers()">💾 Salvar</button>
       </div>
+      <div class="shdr"><div class="sdot"></div><h3>Ajuste Manual de FitCoins</h3></div>
+      <div class="card">
+        <p style="font-size:12px;color:var(--muted2);margin-bottom:14px">Adicione ou remova FC de uma jogadora. Use valor negativo para descontar. O ajuste é registrado no histórico.</p>
+        ${S.players.map(p=>`
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="font-size:20px">${p.emoji}</span>
+          <span style="font-size:13px;font-weight:600;min-width:60px">${p.name}</span>
+          <span style="font-size:12px;color:var(--gold);min-width:60px">${p.fitcoins||0} FC</span>
+          <input class="af-input" type="number" id="adj_fc_${p.id}" placeholder="ex: +50 ou -10" style="flex:1;width:80px">
+          <input class="af-input" type="text" id="adj_mot_${p.id}" placeholder="Motivo" style="flex:2">
+          <button onclick="applyFCAdj(${p.id})" style="background:var(--gold);color:#000;border:none;padding:8px 14px;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Aplicar</button>
+        </div>`).join('')}
+      </div>
       <div class="shdr"><div class="sdot"></div><h3>Segurança</h3></div>
       <div class="card">
         <div class="af-group"><label class="af-label">Nova Senha Admin</label><input class="af-input" type="password" id="cfg_pw1" placeholder="Nova senha"></div>
@@ -2531,6 +2544,17 @@ function saveNewStoreItem(){
   if(!S.customStore) S.customStore=JSON.parse(JSON.stringify(DEFAULT_STORE));
   S.customStore.push({id:'c_'+Date.now(),ico,tier,name,partner,desc,cost});
   save(); showToast('Prêmio adicionado!'); switchAdminTab('loja');
+}
+function applyFCAdj(pid){
+  const p=S.players.find(x=>x.id===pid);
+  const val=parseInt(document.getElementById(`adj_fc_${pid}`).value);
+  const mot=document.getElementById(`adj_mot_${pid}`).value.trim()||'Ajuste manual';
+  if(!val||isNaN(val)){ showToast('Digite um valor de FC',true); return; }
+  const novo=Math.max(0,(p.fitcoins||0)+val);
+  p.fitcoins=novo;
+  S.resgates.push({pid,type:'ajuste',itemId:'__ajuste__',itemName:`⚙️ Ajuste: ${mot}`,cost:-val,date:today(),status:'approved'});
+  save(); renderAdminContent(); renderAll();
+  showToast(`${val>0?'+':''}${val} FC para ${p.name} ✅`);
 }
 function approveResgate(idx){ S.resgates[idx].status='approved'; save(); showToast('✅ Aprovado!'); renderAdminContent(); renderAll(); }
 function rejectResgate(idx){ const r=S.resgates[idx]; S.players[r.pid].fitcoins=(S.players[r.pid].fitcoins||0)+r.cost; r.status='rejected'; save(); showToast('FC devolvidos.'); renderAdminContent(); renderAll(); }
