@@ -752,10 +752,13 @@ function getStore(){ return (S.customStore || JSON.parse(JSON.stringify(DEFAULT_
 function getReport(pid,date){ return S.reports[`${pid}_${date}`]||null; }
 function todayReport(pid){ return getReport(pid,today()); }
 
+// Compat: reports antigos usam campos separados; novos usam valorTotal
+function repTotal(r){ return r ? (r.valorTotal || (r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0)) : 0; }
+
 function teamRevForDate(date){
   return S.players.reduce((s,p)=>{
     const r=getReport(p.id,date);
-    return s+(r?(r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0):0);
+    return s+repTotal(r);
   },0);
 }
 function todayTeamRev(){ return teamRevForDate(today()); }
@@ -840,17 +843,7 @@ function getDailyMission(){
 function monthRevForKey(pid,mk){
   return Object.keys(S.reports)
     .filter(k=>k.startsWith(`${pid}_${mk}`))
-    .reduce((s,k)=>s+(S.reports[k].valorMatriculas||0)+(S.reports[k].valorRenovacoes||0)+(S.reports[k].valorOutrasVendas||0),0);
-}
-function monthRevNovas(pid){
-  const mk=monthKey();
-  return Object.keys(S.reports).filter(k=>k.startsWith(`${pid}_${mk}`))
-    .reduce((s,k)=>s+(S.reports[k].valorMatriculas||0),0);
-}
-function monthRevRenov(pid){
-  const mk=monthKey();
-  return Object.keys(S.reports).filter(k=>k.startsWith(`${pid}_${mk}`))
-    .reduce((s,k)=>s+(S.reports[k].valorRenovacoes||0),0);
+    .reduce((s,k)=>s+repTotal(S.reports[k]),0);
 }
 function monthRev(pid){ return monthRevForKey(pid,monthKey()); }
 function monthStat(pid,field){
@@ -905,7 +898,7 @@ function calcFC(pid, r){
     add('⭐ Bônus completude missão', fc('completudeAtiv'));
 
   // Gatilho R$2k individual
-  const indTotal = (r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0);
+  const indTotal = repTotal(r);
   if(indTotal >= gr('threshold2k')) add(`🚀 Gatilho R$${gr('threshold2k').toLocaleString('pt-BR')} individual`, fc('gatilho2k'));
 
   // Gatilho 4 planos: matrículas + upgrades + plano72(×2)
@@ -919,10 +912,10 @@ function calcFC(pid, r){
   const activeD = getActiveDate ? getActiveDate() : today();
   const existingRep = getReport(pid, activeD);
   const existingRev = existingRep
-    ? (existingRep.valorMatriculas||0)+(existingRep.valorRenovacoes||0)+(existingRep.valorOutrasVendas||0)
+    ? repTotal(existingRep)
     : 0;
   const otherTeamRev = teamRevForDate(activeD) - existingRev;
-  const previewRev = otherTeamRev+(r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0);
+  const previewRev = otherTeamRev+repTotal(r);
   const quotaForDay = activeD === today() ? effectiveQuota() : getCfg(activeD.slice(0,7)).dailyQuota;
   if(previewRev >= quotaForDay) add('🏆 Cota diária do time', fc('cotaDiaria'));
 
@@ -945,7 +938,7 @@ function calcFC(pid, r){
 function calcDailyComm(pid){
   const r=todayReport(pid); if(!r) return 0;
   if(!teamHitForDate(today())) return 0;
-  return (r.valorMatriculas||0)*0.02+(r.valorRenovacoes||0)*0.01;
+  return repTotal(r)*0.02;
 }
 function calcMonthComm(pid){
   const total = monthRev(pid);
@@ -1103,9 +1096,6 @@ function manualMonthCloseFor(mk){
 function submitReport(e){
   e.preventDefault();
   const pid=S.currentPlayer, p=S.players[pid];
-  const valMA=parseFloat(document.getElementById('f_valma').value)||0;
-  const valR =parseFloat(document.getElementById('f_valr').value)||0;
-  const valOut=parseFloat(document.getElementById('f_valout').value)||0;
   const r={
     qtdMatriculas:        parseInt(document.getElementById('f_qtdma').value)||0,
     qtdRenovacoes:        parseInt(document.getElementById('f_qtdr').value)||0,
@@ -1118,9 +1108,7 @@ function submitReport(e){
     abordagens:       parseInt(document.getElementById('f_abord').value)||0,
     leadsQuentes:     parseInt(document.getElementById('f_leads').value)||0,
     indicacoes:       parseInt(document.getElementById('f_indic').value)||0,
-    valorMatriculas:   valMA,
-    valorRenovacoes:   valR,
-    valorOutrasVendas: valOut,
+    valorTotal: parseFloat(document.getElementById('f_vtotal').value)||0,
     obs:              document.getElementById('f_obs').value||'',
     submittedAt:      new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
     date:             getActiveDate(),
@@ -1217,7 +1205,7 @@ function renderDashboard(){
   const pct128=Math.min(100,Math.round((mRev/cfg.superacao)*100));
   const ranked=[...S.players].map(p=>{
     const r=todayReport(p.id);
-    return{p,rev:r?(r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0):0,fc:r?r.fcEarned||0:0};
+    return{p,rev:repTotal(r),fc:r?r.fcEarned||0:0};
   }).sort((a,b)=>b.rev-a.rev);
   const medals=['🥇','🥈','🥉'];
   const totalFC=S.players.reduce((s,p)=>{const r=todayReport(p.id);return s+(r?r.fcEarned||0:0);},0);
@@ -1267,7 +1255,7 @@ function renderDashboard(){
       <div style="font-size:10px;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⚡ Gatilho ${fmtMoney(gr('threshold2k'))} Individual</div>
       ${S.players.map(p=>{
         const r=todayReport(p.id);
-        const indRev=r?(r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0):0;
+        const indRev=repTotal(r);
         const thresh=gr('threshold2k');
         const pct=Math.min(100,Math.round((indRev/thresh)*100));
         const hit=indRev>=thresh;
@@ -1342,7 +1330,7 @@ function renderPainel(){
       <div class="mstat"><div class="mstat-v cv-amber">${r.qtdPostagens||0}</div><div class="mstat-l">📸 Posts</div></div>
     </div>
     <div class="grid3" style="margin-bottom:10px">
-      <div class="mstat"><div class="mstat-v cv-green" style="font-size:13px">${fmtMoneyDec((r.valorMatriculas||0)+(r.valorRenovacoes||0)+(r.valorOutrasVendas||0)).replace('R$ ','')}</div><div class="mstat-l">💰 Total</div></div>
+      <div class="mstat"><div class="mstat-v cv-green" style="font-size:13px">${fmtMoneyDec(repTotal(r)).replace('R$ ','')}</div><div class="mstat-l">💰 Total</div></div>
       <div class="mstat"><div class="mstat-v cv-gold">${r.fcEarned||0}</div><div class="mstat-l">🪙 FC hoje</div></div>
       <div class="mstat"><div class="mstat-v" style="font-size:12px;color:var(--muted2)">${r.submittedAt}</div><div class="mstat-l">⏱️ Hora</div></div>
     </div>
@@ -1450,7 +1438,7 @@ function renderReport(){
   const activeDate = getActiveDate();
   const r=getReport(pid, activeDate), cfg=curCfg();
   const v=r||{};
-  const totalVal=((v.valorMatriculas||0)+(v.valorRenovacoes||0)+(v.valorOutrasVendas||0));
+  const totalVal=repTotal(v);
 
   // Seletor de datas — dias 1 até hoje no mês atual
   const todayStr = today();
@@ -1529,23 +1517,9 @@ function renderReport(){
       </div>
 
       <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Receita (R$)</h3></div>
-      <div class="frow">
-        <div class="fgroup">
-          <div class="flabel">Valor Matrículas</div>
-          <input class="finput money" type="number" id="f_valma" min="0" step="0.01" value="${v.valorMatriculas||''}" placeholder="0,00" oninput="updateTotal()">
-        </div>
-        <div class="fgroup">
-          <div class="flabel">Valor Renovações</div>
-          <input class="finput money" type="number" id="f_valr" min="0" step="0.01" value="${v.valorRenovacoes||''}" placeholder="0,00" oninput="updateTotal()">
-        </div>
-      </div>
       <div class="fgroup">
-        <div class="flabel">Outras Vendas <span style="font-size:10px;color:var(--muted2);font-weight:400">(aluguel, taxa, serviço)</span></div>
-        <input class="finput money" type="number" id="f_valout" min="0" step="0.01" value="${v.valorOutrasVendas||''}" placeholder="0,00" oninput="updateTotal()">
-      </div>
-      <div class="fgroup">
-        <div class="flabel">Total do Dia</div>
-        <input class="finput total-display" id="f_total" readonly value="${totalVal>0?fmtMoneyDec(totalVal):'—'}">
+        <div class="flabel">Valor Total de Vendas do Dia</div>
+        <input class="finput money" type="number" id="f_vtotal" min="0" step="0.01" value="${totalVal||''}" placeholder="0,00">
       </div>
 
       <div class="shdr" style="margin-top:4px"><div class="sdot"></div><h3>Iniciativas <span style="font-size:10px;color:var(--muted2);font-weight:400;text-transform:none;letter-spacing:0">· geram FC</span></h3></div>
@@ -1599,13 +1573,6 @@ function renderReport(){
     ${fcSumHtml}`;
 }
 
-function updateTotal(){
-  const ma=parseFloat(document.getElementById('f_valma')?.value)||0;
-  const r =parseFloat(document.getElementById('f_valr')?.value)||0;
-  const out=parseFloat(document.getElementById('f_valout')?.value)||0;
-  const el=document.getElementById('f_total');
-  if(el) el.value=(ma+r+out)>0?fmtMoneyDec(ma+r+out):'—';
-}
 
 // ═══════════════════════════════════════════
 // RENDER LOJA
@@ -2202,7 +2169,7 @@ function renderAdminContent(){
             <tbody>
               ${reps.map(({date,rep})=>{
                 const dayNum = date.slice(8);
-                const total = (rep.valorMatriculas||0)+(rep.valorRenovacoes||0)+(rep.valorOutrasVendas||0);
+                const total = repTotal(rep);
                 const fcEarned = rep.fcEarned || 0;
                 const monthClosed = !!S.monthArchive[curMonth];
                 return `<tr style="border-bottom:1px solid #1A1A1A">
@@ -2224,7 +2191,7 @@ function renderAdminContent(){
                   const sum = reps.reduce((s,{rep})=>s+(rep[f.key]||0),0);
                   return `<td style="padding:6px;text-align:center;font-weight:800;color:${sum>0?'var(--text)':'var(--muted)'}">${sum||'—'}</td>`;
                 }).join('')}
-                <td style="padding:6px;text-align:right;font-weight:800;color:var(--green)">${fmtMoneyDec(reps.reduce((s,{rep})=>s+(rep.valorMatriculas||0)+(rep.valorRenovacoes||0)+(rep.valorOutrasVendas||0),0))}</td>
+                <td style="padding:6px;text-align:right;font-weight:800;color:var(--green)">${fmtMoneyDec(reps.reduce((s,{rep})=>s+repTotal(rep),0))}</td>
                 <td style="padding:6px;text-align:right;font-weight:800;color:var(--gold)">${reps.reduce((s,{rep})=>s+(rep.fcEarned||0),0)} FC</td>
               </tr>
             </tfoot>
@@ -2541,15 +2508,13 @@ function adminEditReport(pid, date){
   document.getElementById('aeFields').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Novas Matrículas</label><input id="ae_ma" type="number" min="0" value="${rep.qtdMatriculas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
-      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Matrículas (R$)</label><input id="ae_vma" type="number" min="0" step="0.01" value="${rep.valorMatriculas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Renovações Normais</label><input id="ae_re" type="number" min="0" value="${rep.qtdRenovacoes||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Renov. com Upgrade</label><input id="ae_ru" type="number" min="0" value="${rep.qtdRenovacoesUpgrade||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Plano 72 créditos</label><input id="ae_p72" type="number" min="0" value="${rep.qtdPlano72||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
-      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Renovações (R$)</label><input id="ae_vre" type="number" min="0" step="0.01" value="${rep.valorRenovacoes||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
-      <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Outras Vendas (R$)</label><input id="ae_valout" type="number" min="0" step="0.01" value="${rep.valorOutrasVendas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Aulas Exp.</label><input id="ae_ae" type="number" min="0" value="${rep.aulaExp||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Campanhas</label><input id="ae_ca" type="number" min="0" value="${rep.qtdCampanhas||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
       <div><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Postagens</label><input id="ae_po" type="number" min="0" value="${rep.qtdPostagens||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
+      <div style="grid-column:1/-1"><label style="font-size:11px;color:var(--muted2);display:block;margin-bottom:4px">Valor Total de Vendas do Dia (R$)</label><input id="ae_vtotal" type="number" min="0" step="0.01" value="${repTotal(rep)||0}" style="width:100%;background:var(--card2);border:1px solid #333;border-radius:6px;padding:8px;color:var(--text);font-size:14px"></div>
     </div>
     <div style="background:var(--card2);border-radius:6px;padding:10px;font-size:11px;color:var(--amber);margin-bottom:8px">⚠️ FC será recalculado automaticamente com base nos novos valores.</div>
   `;
@@ -2570,16 +2535,14 @@ function saveAdminEdit(){
   // Monta novo report
   const newRep = {
     ...rep,
-    qtdMatriculas:    parseInt(document.getElementById('ae_ma').value)||0,
-    valorMatriculas:  parseFloat(document.getElementById('ae_vma').value)||0,
+    qtdMatriculas:        parseInt(document.getElementById('ae_ma').value)||0,
     qtdRenovacoes:        parseInt(document.getElementById('ae_re').value)||0,
     qtdRenovacoesUpgrade: parseInt(document.getElementById('ae_ru').value)||0,
     qtdPlano72:           parseInt(document.getElementById('ae_p72').value)||0,
-    valorRenovacoes:      parseFloat(document.getElementById('ae_vre').value)||0,
-    valorOutrasVendas:    parseFloat(document.getElementById('ae_valout').value)||0,
-    aulaExp:          parseInt(document.getElementById('ae_ae').value)||0,
-    qtdCampanhas:     parseInt(document.getElementById('ae_ca').value)||0,
-    qtdPostagens:     parseInt(document.getElementById('ae_po').value)||0,
+    aulaExp:              parseInt(document.getElementById('ae_ae').value)||0,
+    qtdCampanhas:         parseInt(document.getElementById('ae_ca').value)||0,
+    qtdPostagens:         parseInt(document.getElementById('ae_po').value)||0,
+    valorTotal:           parseFloat(document.getElementById('ae_vtotal').value)||0,
     editedByAdmin:    true,
     editedAt:         new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
   };
