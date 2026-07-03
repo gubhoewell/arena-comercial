@@ -841,7 +841,8 @@ function seedMissionsIfEmpty(){
     if(m) seeded[`2026-07-${String(d).padStart(2,'0')}`] = m;
   }
   S.missions = { ...S.missions, ...seeded };
-  save();
+  // Salva só as missões — nunca o estado inteiro — para não sobrescrever configs do Firebase
+  ROOT.child('missions').set(S.missions).catch(e=>console.error('Seed missions error:',e));
 }
 
 function getDailyMission(){
