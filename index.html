@@ -395,7 +395,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </div>
 
 <script>
-console.log('[ARENA] Script iniciando...');
 // ═══════════════════════════════════════════
 // DEFAULTS
 // ═══════════════════════════════════════════
@@ -3181,7 +3180,6 @@ DB.ref('.info/connected').on('value', snap=>{
 
 let _firstLoad = true;
 ROOT.on('value', snapshot=>{
-  console.log('[firebase] ROOT listener disparou, tem dados:', !!snapshot.val());
   const data = snapshot.val();
   if(data) mergeFirebaseData(data);
   if(!_firebaseLoaded) _firebaseLoaded = true; // libera save() na primeira resposta do Firebase
