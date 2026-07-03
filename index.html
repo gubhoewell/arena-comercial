@@ -2656,14 +2656,21 @@ function saveStoreItem(idx){
   const cost    = parseInt(document.getElementById('ei_cost').value)||0;
   if(!name){ showToast('Nome obrigatório',true); return; }
   if(!S.customStore) S.customStore=JSON.parse(JSON.stringify(DEFAULT_STORE));
-  S.customStore[idx]={...S.customStore[idx]||DEFAULT_STORE[idx],ico,tier,name,partner,desc,cost};
+  const sortedItem = getStore()[idx];
+  const realIdx = sortedItem ? S.customStore.findIndex(i=>i.id===sortedItem.id) : -1;
+  if(realIdx>=0) S.customStore[realIdx]={...S.customStore[realIdx],ico,tier,name,partner,desc,cost};
+  else S.customStore.push({id:'item_'+Date.now(),ico,tier,name,partner,desc,cost});
   save(); showToast('Prêmio atualizado!'); switchAdminTab('loja');
 }
 
 function deleteStoreItem(idx){
   if(!confirm('Remover este prêmio?')) return;
   if(!S.customStore) S.customStore=JSON.parse(JSON.stringify(DEFAULT_STORE));
-  S.customStore.splice(idx,1); save(); showToast('Removido.'); renderAdminContent();
+  const sortedItem = getStore()[idx];
+  if(!sortedItem){ showToast('Item não encontrado',true); return; }
+  S.customStore = S.customStore.filter(i=>i.id!==sortedItem.id);
+  ROOT.child('customStore').set(S.customStore).then(()=>showToast('Removido.')).catch(()=>showToast('Erro ao salvar',true));
+  renderAdminContent();
 }
 
 function addStoreItem(){
