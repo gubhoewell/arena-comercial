@@ -2668,8 +2668,11 @@ function deleteStoreItem(idx){
   if(!S.customStore) S.customStore=JSON.parse(JSON.stringify(DEFAULT_STORE));
   const sortedItem = getStore()[idx];
   if(!sortedItem){ showToast('Item não encontrado',true); return; }
+  const before = S.customStore.length;
   S.customStore = S.customStore.filter(i=>i.id!==sortedItem.id);
-  ROOT.child('customStore').set(S.customStore).then(()=>showToast('Removido.')).catch(()=>showToast('Erro ao salvar',true));
+  console.log('[delete] antes:',before,'depois:',S.customStore.length,'item.id:',sortedItem.id);
+  save();
+  showToast('Removido ✓');
   renderAdminContent();
 }
 
