@@ -3172,9 +3172,9 @@ let _firstLoad = true;
 ROOT.on('value', snapshot=>{
   const data = snapshot.val();
   if(data) mergeFirebaseData(data);
+  if(!_firebaseLoaded) _firebaseLoaded = true; // libera save() na primeira resposta do Firebase
   if(_firstLoad){
     _firstLoad = false;
-    _firebaseLoaded = true; // libera save() apenas após Firebase carregar
     seedMissionsIfEmpty();
     // Backup diário automático — roda uma vez por dia na primeira carga
     DB.ref(`point43_backups/${today()}`).once('value').then(snap=>{
