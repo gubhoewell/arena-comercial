@@ -721,6 +721,13 @@ function mergeFirebaseData(data){
       .map(k => S.players[k]);
   }
 
+  // Firebase transforma arrays em objetos — normalizar customStore de volta para array
+  if(S.customStore && !Array.isArray(S.customStore)){
+    S.customStore = Object.keys(S.customStore)
+      .sort((a,b)=>Number(a)-Number(b))
+      .map(k => S.customStore[k]);
+  }
+
   // garantir estrutura dos players preservando PIN e outros campos extras
   DEFAULT_PLAYERS.forEach((dp,i)=>{
     if(!S.players[i]) S.players[i] = {...dp};
