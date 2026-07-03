@@ -649,7 +649,19 @@ function sessionPinOk(playerIdx){
   }catch(e){ return false; }
 }
 
+let _firebaseLoaded = false; // true após primeiro snapshot do Firebase
+
 function save(){
+  // Proteção: nunca salva se Firebase ainda não carregou — evita sobrescrever dados reais com defaults
+  if(!_firebaseLoaded){
+    console.warn('save() bloqueado: Firebase ainda não carregou.');
+    return;
+  }
+  // Proteção: dados suspeitamente vazios indicam estado corrompido
+  if(!S.players || S.players.length === 0){
+    console.warn('save() bloqueado: players vazio — estado suspeito.');
+    return;
+  }
   saveLocal();
   const payload = {
     players:       S.players,
@@ -672,6 +684,27 @@ function save(){
   };
   ROOT.set(payload)
     .catch(e=>{ console.error('Firebase write error:',e); showToast('Erro ao salvar ☁️',true); });
+}
+
+function saveBackup(){
+  if(!_firebaseLoaded || !S.players || S.players.length === 0) return;
+  const key = today();
+  const snapshot = {
+    savedAt: new Date().toISOString(),
+    players: S.players,
+    reports: S.reports || {},
+    resgates: S.resgates || [],
+    fcRules: S.fcRules || {},
+    customStore: S.customStore || null,
+    adminPassword: S.adminPassword || '',
+    pins: S.pins || {},
+    cfoPin: S.cfoPin || '',
+    monthConfig: S.monthConfig || {},
+    monthArchive: S.monthArchive || {},
+  };
+  DB.ref(`point43_backups/${key}`).set(snapshot)
+    .then(()=>console.log(`Backup salvo: ${key}`))
+    .catch(e=>console.error('Backup error:',e));
 }
 
 function mergeFirebaseData(data){
@@ -3123,7 +3156,12 @@ ROOT.on('value', snapshot=>{
   if(data) mergeFirebaseData(data);
   if(_firstLoad){
     _firstLoad = false;
+    _firebaseLoaded = true; // libera save() apenas após Firebase carregar
     seedMissionsIfEmpty();
+    // Backup diário automático — roda uma vez por dia na primeira carga
+    DB.ref(`point43_backups/${today()}`).once('value').then(snap=>{
+      if(!snap.val()) saveBackup();
+    });
     document.getElementById('loadingScreen').style.display = 'none';
     // Verifica sessão salva no dispositivo
     const session = loadSession();
