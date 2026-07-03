@@ -1299,6 +1299,7 @@ function renderTQB(){
 // RENDER DASHBOARD
 // ═══════════════════════════════════════════
 function renderDashboard(){
+  const pid=S.currentPlayer, p=S.players[pid];
   const mRev=totalTeamMonthRev(), cfg=curCfg(), de=daysElapsed();
   const pct93=Math.min(100,Math.round((mRev/cfg.monthQuota)*100));
   const pct128=Math.min(100,Math.round((mRev/cfg.superacao)*100));
