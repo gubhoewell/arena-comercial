@@ -2679,11 +2679,11 @@ function deleteStoreItem(idx){
   if(!S.customStore) S.customStore=JSON.parse(JSON.stringify(DEFAULT_STORE));
   const sortedItem = getStore()[idx];
   if(!sortedItem){ showToast('Item não encontrado',true); return; }
-  S.customStore = S.customStore.filter(i=>i.id!==sortedItem.id);
-  const payload = S.customStore.length ? S.customStore : null;
-  console.log('[delete] escrevendo no Firebase:', payload ? payload.length + ' itens' : 'null', 'ids:', payload ? payload.map(i=>i.id).join(',') : '');
-  ROOT.child('customStore').set(payload)
-    .then(()=>{ console.log('[delete] Firebase confirmou!'); showToast('Removido ✓'); })
+  const filtered = S.customStore.filter(i=>i.id!==sortedItem.id);
+  if(filtered.length === 0){ showToast('Precisa ter ao menos 1 prêmio na loja.',true); return; }
+  S.customStore = filtered;
+  ROOT.child('customStore').set(S.customStore)
+    .then(()=>showToast('Removido ✓'))
     .catch(e=>{ console.error('[delete] ERRO Firebase:', e); showToast('Erro ao salvar',true); });
   renderAdminContent();
 }
