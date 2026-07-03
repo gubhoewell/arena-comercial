@@ -809,7 +809,10 @@ function getPlayerIndQuota(pid){
   return def ? def.indQuota : DEF.indQuota;
 }
 function curCfg(){ return getCfg(monthKey()); }
-function getStore(){ return (S.customStore || JSON.parse(JSON.stringify(DEFAULT_STORE))).slice().sort((a,b)=>a.cost-b.cost); }
+function getStore(){
+  const base = _firebaseLoaded ? (S.customStore||[]) : (S.customStore||JSON.parse(JSON.stringify(DEFAULT_STORE)));
+  return base.slice().sort((a,b)=>a.cost-b.cost);
+}
 
 // ═══════════════════════════════════════════
 // REPORT HELPERS
@@ -872,6 +875,12 @@ const JULY_MISSIONS = [
   {w:'🏆',focus:'Sprint Final de Julho',desc:'Sprint final.',tasks:['30 abordagens ativas','10 pedidos de indicação','Bater cota individual']},
   {w:'🏆',focus:'Sprint Final de Julho',desc:'Encerramento de julho.',tasks:['30 abordagens ativas','10 pedidos de indicação','Bater R$93k do time']},
 ];
+
+function seedCustomStoreIfEmpty(){
+  if(S.customStore && S.customStore.length > 0) return;
+  S.customStore = JSON.parse(JSON.stringify(DEFAULT_STORE));
+  ROOT.child('customStore').set(S.customStore).catch(e=>console.error('Seed store error:',e));
+}
 
 function seedMissionsIfEmpty(){
   const hasJuly = Object.keys(S.missions||{}).some(k=>k.startsWith('2026-07'));
@@ -2671,10 +2680,9 @@ function deleteStoreItem(idx){
   const sortedItem = getStore()[idx];
   if(!sortedItem){ showToast('Item não encontrado',true); return; }
   S.customStore = S.customStore.filter(i=>i.id!==sortedItem.id);
-  ROOT.child('customStore').set(S.customStore)
-    .then(()=>{ showToast('Removido ✓'); })
+  ROOT.child('customStore').set(S.customStore.length ? S.customStore : null)
+    .then(()=>showToast('Removido ✓'))
     .catch(()=>showToast('Erro ao salvar',true));
-  if(_firebaseLoaded) save();
   renderAdminContent();
 }
 
@@ -3178,6 +3186,7 @@ ROOT.on('value', snapshot=>{
   if(_firstLoad){
     _firstLoad = false;
     seedMissionsIfEmpty();
+    seedCustomStoreIfEmpty();
     // Backup diário automático — roda uma vez por dia na primeira carga
     DB.ref(`point43_backups/${today()}`).once('value').then(snap=>{
       if(!snap.val()) saveBackup();
