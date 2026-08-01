@@ -766,7 +766,8 @@ function fc(key){ return (S.fcRules && S.fcRules[key] != null) ? S.fcRules[key] 
 // ═══════════════════════════════════════════
 // DATE HELPERS
 // ═══════════════════════════════════════════
-function today(){ return new Date().toISOString().slice(0,10); }
+function localDateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function today(){ return localDateStr(new Date()); }
 function monthKey(){
   const d=new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
@@ -775,7 +776,7 @@ function prevMonthKey(){
   const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
-function yesterday(){ const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+function yesterday(){ const d=new Date(); d.setDate(d.getDate()-1); return localDateStr(d); }
 function daysElapsed(){ return new Date().getDate(); }
 function fmtMoney(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}); }
 function fmtMoneyDec(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
