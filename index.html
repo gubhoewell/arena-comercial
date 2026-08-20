@@ -1242,24 +1242,49 @@ function requestBonusCota(){
 function resgateSaque(){
   const pid=S.currentPlayer, p=S.players[pid];
   const fc_=p.fitcoins||0;
-  const rate=fc('saqueRate')/100; // R$ por FC
+  const rate=fc('saqueRate')/100;
   const minFC=100;
   if(fc_<minFC){ showToast(`Mínimo de ${minFC} FC para saque 😅`,true); return; }
-  // Só 1 saque pendente por vez
   if(S.resgates.some(r=>r.pid===pid&&r.type==='saque'&&r.status==='pending')){
     showToast('Você já tem um saque pendente ⏳',true); return;
   }
   const maxMultiple=Math.floor(fc_/minFC)*minFC;
-  const qtd=parseInt(prompt(`Quantos FitCoins deseja sacar?\nMínimo: ${minFC} FC | Disponível: ${fc_} FC\nValor em R$: R$${(maxMultiple*rate).toFixed(2)} máximo\n\n(Digite múltiplos de ${minFC})`));
-  if(!qtd||isNaN(qtd)) return;
-  const fcQtd=Math.floor(qtd/minFC)*minFC;
+  const maxReais=(maxMultiple*rate).toFixed(2);
+  // Modal inline — funciona em celular
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML=`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:360px">
+      <div style="font-size:18px;font-weight:800;margin-bottom:4px">💵 Saque em Dinheiro</div>
+      <div style="font-size:13px;color:var(--muted2);margin-bottom:16px">Você tem <strong style="color:var(--gold)">${fc_} FC</strong> · máx. <strong style="color:#4ade80">R$ ${maxReais}</strong></div>
+      <label style="font-size:12px;color:var(--muted2);display:block;margin-bottom:6px">Quantos FC quer sacar? (múltiplos de 100)</label>
+      <input id="saque-input" type="number" min="100" max="${maxMultiple}" step="100" value="${maxMultiple}"
+        style="width:100%;padding:12px;font-size:18px;font-weight:700;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);text-align:center;box-sizing:border-box">
+      <div id="saque-preview" style="text-align:center;margin-top:10px;font-size:15px;color:#4ade80;font-weight:700">= R$ ${maxReais}</div>
+      <div style="display:flex;gap:10px;margin-top:18px">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:14px;cursor:pointer">Cancelar</button>
+        <button id="saque-btn" onclick="confirmarSaque(${pid},${fc_},${rate},${minFC})" style="flex:2;padding:12px;border-radius:10px;border:none;background:#4ade80;color:#000;font-size:14px;font-weight:700;cursor:pointer">Confirmar Saque</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const input=document.getElementById('saque-input');
+  input.addEventListener('input',()=>{
+    const v=Math.floor((parseInt(input.value)||0)/minFC)*minFC;
+    document.getElementById('saque-preview').textContent=v>=minFC?`= R$ ${(v*rate).toFixed(2)}`:'⚠️ Mínimo 100 FC';
+  });
+  input.focus(); input.select();
+}
+function confirmarSaque(pid,fc_,rate,minFC){
+  const input=document.getElementById('saque-input');
+  const fcQtd=Math.floor((parseInt(input.value)||0)/minFC)*minFC;
   if(fcQtd<minFC){ showToast(`Mínimo ${minFC} FC`,true); return; }
   if(fcQtd>fc_){ showToast('FitCoins insuficientes 😅',true); return; }
+  document.querySelector('div[style*="position:fixed"][style*="z-index:9999"]')?.remove();
   const valor=(fcQtd*rate).toFixed(2);
-  if(!confirm(`Solicitar saque de ${fcQtd} FC = R$${valor}?\nO pagamento será feito via Pix após aprovação.`)) return;
-  p.fitcoins=fc_-fcQtd;
-  S.resgates.push({pid,type:'saque',itemId:'__saque__',itemName:`💵 Saque em Dinheiro`,cost:fcQtd,valorReais:parseFloat(valor),date:today(),status:'pending'});
-  save(); renderAll(); showToast('Saque solicitado! 💵');
+  const p=S.players[pid];
+  p.fitcoins=(p.fitcoins||0)-fcQtd;
+  S.resgates.push({pid,type:'saque',itemId:'__saque__',itemName:'💵 Saque em Dinheiro',cost:fcQtd,valorReais:parseFloat(valor),date:today(),status:'pending'});
+  save(); renderAll(); showToast(`Saque de R$${valor} solicitado! 💵`);
 }
 
 // ═══════════════════════════════════════════
