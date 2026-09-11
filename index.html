@@ -1275,10 +1275,18 @@ function resgateSaque(){
   input.focus(); input.select();
 }
 function confirmarSaque(pid,fc_,rate,minFC){
+  // Evitar duplo clique
+  const btn=document.getElementById('saque-btn');
+  if(btn) { btn.disabled=true; btn.textContent='Processando...'; }
+  // Verificação extra: já tem pendente?
+  if(S.resgates.some(r=>r.pid===pid&&r.type==='saque'&&r.status==='pending')){
+    document.querySelector('div[style*="position:fixed"][style*="z-index:9999"]')?.remove();
+    showToast('Você já tem um saque pendente ⏳',true); return;
+  }
   const input=document.getElementById('saque-input');
   const fcQtd=Math.floor((parseInt(input.value)||0)/minFC)*minFC;
-  if(fcQtd<minFC){ showToast(`Mínimo ${minFC} FC`,true); return; }
-  if(fcQtd>fc_){ showToast('FitCoins insuficientes 😅',true); return; }
+  if(fcQtd<minFC){ showToast(`Mínimo ${minFC} FC`,true); if(btn){btn.disabled=false;btn.textContent='Confirmar Saque';} return; }
+  if(fcQtd>fc_){ showToast('FitCoins insuficientes 😅',true); if(btn){btn.disabled=false;btn.textContent='Confirmar Saque';} return; }
   document.querySelector('div[style*="position:fixed"][style*="z-index:9999"]')?.remove();
   const valor=(fcQtd*rate).toFixed(2);
   const p=S.players[pid];
